@@ -1,0 +1,1971 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Pueblo Loco — Constructor de Barrio</title>
+<style>
+  :root {
+    --bg: #1a2332;
+    --panel: rgba(22, 30, 44, 0.92);
+    --panel-solid: #161e2c;
+    --card: #223047;
+    --border: rgba(255,255,255,0.08);
+    --text: #eef2f7;
+    --muted: #8b99ad;
+    --accent: #ffb84d;
+    --accent2: #ff7d9c;
+    --coin: #ffd166;
+    --dona: #ff8fab;
+    --good: #6ee7a0;
+    --bad: #ff6b6b;
+    --radius: 16px;
+    --shadow: 0 8px 32px rgba(0,0,0,0.45);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; overflow: hidden; background: var(--bg); }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    color: var(--text); user-select: none; -webkit-user-select: none;
+    touch-action: none;
+  }
+  #game { position: fixed; inset: 0; }
+  canvas { display: block; width: 100%; height: 100%; }
+
+  /* ---------- HUD superior ---------- */
+  #hud {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 10;
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 12px;
+    background: linear-gradient(180deg, rgba(10,15,25,0.85), rgba(10,15,25,0));
+    pointer-events: none;
+  }
+  #hud > * { pointer-events: auto; }
+  .chip {
+    display: flex; align-items: center; gap: 6px;
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 999px; padding: 7px 14px;
+    font-weight: 700; font-size: 15px;
+    backdrop-filter: blur(8px); box-shadow: var(--shadow);
+    white-space: nowrap;
+  }
+  .chip .ico { font-size: 17px; }
+  #coins { color: var(--coin); }
+  #donas { color: var(--dona); }
+  #levelChip { margin-left: auto; cursor: pointer; }
+  #xpWrap {
+    width: 64px; height: 7px; border-radius: 99px;
+    background: rgba(255,255,255,0.12); overflow: hidden;
+  }
+  #xpBar { height: 100%; width: 0%; border-radius: 99px;
+    background: linear-gradient(90deg, #6ee7a0, #ffd166); transition: width .4s; }
+
+  /* ---------- Barra inferior ---------- */
+  #dock {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 10;
+    display: flex; justify-content: center; gap: 10px;
+    padding: 10px 12px calc(12px + env(safe-area-inset-bottom));
+    background: linear-gradient(0deg, rgba(10,15,25,0.9), rgba(10,15,25,0));
+    pointer-events: none;
+  }
+  #dock > * { pointer-events: auto; }
+  .dbtn {
+    position: relative;
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+    min-width: 76px; padding: 9px 12px;
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: var(--radius); backdrop-filter: blur(8px);
+    box-shadow: var(--shadow); cursor: pointer;
+    color: var(--text); font-weight: 600; font-size: 11.5px;
+    transition: transform .12s, background .12s;
+  }
+  .dbtn:active { transform: scale(0.94); }
+  .dbtn .ico { font-size: 22px; }
+  .dbtn.hot { background: linear-gradient(135deg, #2b3a55, #223047); border-color: rgba(255,184,77,0.4); }
+  .badge {
+    position: absolute; top: -5px; right: -5px;
+    min-width: 20px; height: 20px; border-radius: 99px;
+    background: var(--accent2); color: #fff;
+    font-size: 11px; font-weight: 800;
+    display: flex; align-items: center; justify-content: center;
+    padding: 0 5px; box-shadow: 0 2px 8px rgba(255,125,156,0.5);
+  }
+
+  /* ---------- Modales ---------- */
+  .overlay {
+    position: fixed; inset: 0; z-index: 20;
+    background: rgba(5,9,16,0.6); backdrop-filter: blur(4px);
+    display: none; align-items: flex-end; justify-content: center;
+  }
+  .overlay.open { display: flex; }
+  .sheet {
+    width: 100%; max-width: 560px; max-height: 78vh;
+    background: var(--panel-solid);
+    border: 1px solid var(--border);
+    border-radius: 24px 24px 0 0;
+    display: flex; flex-direction: column;
+    animation: slideUp .28s cubic-bezier(.2,.9,.3,1.2);
+    box-shadow: 0 -12px 48px rgba(0,0,0,0.6);
+  }
+  @keyframes slideUp { from { transform: translateY(60px); opacity: 0; } }
+  .sheet-head {
+    display: flex; align-items: center; gap: 10px;
+    padding: 16px 18px 10px;
+    border-bottom: 1px solid var(--border);
+  }
+  .sheet-head h2 { font-size: 18px; flex: 1; }
+  .sheet-head .sub { color: var(--muted); font-size: 12.5px; font-weight: 500; }
+  .xbtn {
+    width: 34px; height: 34px; border-radius: 50%;
+    background: var(--card); border: 1px solid var(--border);
+    color: var(--text); font-size: 16px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .sheet-body { overflow-y: auto; padding: 14px 16px calc(18px + env(safe-area-inset-bottom)); }
+
+  .tabs { display: flex; gap: 8px; padding: 0 18px 12px; }
+  .tab {
+    padding: 7px 14px; border-radius: 99px; cursor: pointer;
+    background: var(--card); border: 1px solid var(--border);
+    font-size: 13px; font-weight: 600; color: var(--muted);
+  }
+  .tab.on { background: var(--accent); color: #1a1405; border-color: transparent; }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+  .item {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 14px; padding: 10px; cursor: pointer;
+    display: flex; flex-direction: column; gap: 6px;
+    transition: transform .12s, border-color .12s;
+  }
+  .item:active { transform: scale(0.96); }
+  .item .art {
+    height: 64px; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 34px; background: rgba(255,255,255,0.05);
+  }
+  .item .nm { font-size: 13.5px; font-weight: 700; }
+  .item .ds { font-size: 11.5px; color: var(--muted); line-height: 1.35; }
+  .item .pr { display: flex; gap: 8px; font-size: 13px; font-weight: 800; margin-top: auto; }
+  .item .pr .c { color: var(--coin); } .item .pr .d { color: var(--dona); }
+  .item.locked { opacity: 0.45; }
+  .item.owned { border-color: rgba(110,231,160,0.35); }
+  .item .tag {
+    position: absolute; font-size: 10px; font-weight: 800;
+    background: var(--accent2); color: #fff; border-radius: 99px; padding: 2px 8px;
+  }
+
+  /* tareas de personaje */
+  .task {
+    display: flex; align-items: center; gap: 12px;
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 14px; padding: 12px; margin-bottom: 10px;
+  }
+  .task .tart { font-size: 30px; }
+  .task .tinfo { flex: 1; }
+  .task .tname { font-weight: 700; font-size: 14.5px; }
+  .task .trew { color: var(--muted); font-size: 12.5px; margin-top: 2px; }
+  .task .trew b { color: var(--coin); }
+  .btn {
+    border: none; border-radius: 12px; padding: 10px 16px;
+    font-weight: 800; font-size: 13.5px; cursor: pointer;
+    background: var(--accent); color: #1a1405;
+    transition: transform .1s, filter .1s;
+  }
+  .btn:active { transform: scale(0.95); }
+  .btn.sec { background: var(--card); color: var(--text); border: 1px solid var(--border); }
+  .btn.dona { background: linear-gradient(135deg, #ff8fab, #ff5c8a); color: #fff; }
+  .btn.big { width: 100%; padding: 14px; font-size: 15px; }
+  .btn:disabled { filter: grayscale(0.7); opacity: 0.5; cursor: not-allowed; }
+
+  /* misiones */
+  .quest {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 14px; padding: 14px; margin-bottom: 10px;
+  }
+  .quest.active { border-color: rgba(255,184,77,0.5); }
+  .quest.done { opacity: 0.55; }
+  .quest .qname { font-weight: 800; font-size: 14.5px; display: flex; gap: 8px; align-items: center; }
+  .quest .qstory { color: var(--muted); font-size: 12.5px; margin: 4px 0 8px; line-height: 1.4; }
+  .quest .qobj { font-size: 12.5px; display: flex; align-items: center; gap: 6px; margin-top: 3px; }
+  .quest .qobj.ok { color: var(--good); }
+  .quest .qrew { margin-top: 8px; font-size: 12.5px; font-weight: 800; color: var(--dona); }
+
+  /* ---------- Build mode ---------- */
+  #buildBar {
+    position: fixed; left: 50%; transform: translateX(-50%);
+    bottom: 96px; z-index: 15; display: none;
+    background: var(--panel); border: 1px solid rgba(255,184,77,0.4);
+    border-radius: 14px; padding: 10px 14px;
+    box-shadow: var(--shadow); backdrop-filter: blur(8px);
+    align-items: center; gap: 12px; font-weight: 700; font-size: 13.5px;
+  }
+  #buildBar.open { display: flex; }
+  #buildBar .hint { color: var(--muted); font-weight: 500; font-size: 12px; }
+
+  /* ---------- Toasts ---------- */
+  #toasts {
+    position: fixed; top: 64px; left: 50%; transform: translateX(-50%);
+    z-index: 30; display: flex; flex-direction: column; gap: 8px;
+    align-items: center; pointer-events: none; width: max-content; max-width: 92vw;
+  }
+  .toast {
+    background: var(--panel-solid); border: 1px solid var(--border);
+    border-radius: 99px; padding: 9px 18px;
+    font-size: 13.5px; font-weight: 700;
+    box-shadow: var(--shadow); backdrop-filter: blur(8px);
+    animation: pop .3s cubic-bezier(.2,.9,.3,1.4);
+    display: flex; gap: 8px; align-items: center;
+  }
+  @keyframes pop { from { transform: scale(.7) translateY(-12px); opacity: 0; } }
+  .toast.good { border-color: rgba(110,231,160,0.4); }
+  .toast.bad { border-color: rgba(255,107,107,0.4); }
+  .toast.fade { opacity: 0; transition: opacity .5s; }
+
+  /* zoom */
+  #zoomCtl {
+    position: fixed; right: 12px; top: 64px; z-index: 10;
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .zbtn {
+    width: 38px; height: 38px; border-radius: 12px;
+    background: var(--panel); border: 1px solid var(--border);
+    color: var(--text); font-size: 18px; font-weight: 800;
+    cursor: pointer; box-shadow: var(--shadow);
+    display: flex; align-items: center; justify-content: center;
+    backdrop-filter: blur(8px);
+  }
+
+  /* intro */
+  #intro {
+    position: fixed; inset: 0; z-index: 40;
+    background: radial-gradient(120% 120% at 50% 0%, #24344f 0%, #10161f 70%);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 18px; text-align: center; padding: 24px;
+    transition: opacity .5s;
+  }
+  #intro h1 { font-size: 42px; letter-spacing: -1px; }
+  #intro h1 span { color: var(--accent); }
+  #intro p { color: var(--muted); max-width: 420px; line-height: 1.5; font-size: 14.5px; }
+  #intro .go { font-size: 16px; padding: 14px 38px; }
+  #intro .credits { color: rgba(255,255,255,0.25); font-size: 11.5px; margin-top: 8px; line-height: 1.6; }
+
+  @media (max-width: 480px) {
+    #hud { padding: 8px; gap: 6px; }
+    .chip { padding: 6px 11px; font-size: 13.5px; }
+    .dbtn { min-width: 64px; padding: 8px 9px; font-size: 10.5px; }
+    .dbtn .ico { font-size: 20px; }
+  }
+</style>
+</head>
+<body>
+  <div id="game"><canvas id="cv"></canvas></div>
+
+  <div id="hud">
+    <div class="chip" id="coins"><span class="ico">🪙</span><span id="coinsV">0</span></div>
+    <div class="chip" id="donas"><span class="ico">🍩</span><span id="donasV">0</span></div>
+    <div class="chip" id="levelChip" title="Nivel y experiencia">
+      <span class="ico">⭐</span><span id="levelV">1</span>
+      <div id="xpWrap"><div id="xpBar"></div></div>
+    </div>
+  </div>
+
+  <div id="zoomCtl">
+    <button class="zbtn" id="zIn">＋</button>
+    <button class="zbtn" id="zOut">－</button>
+  </div>
+
+  <div id="buildBar">
+    <span id="buildName">Edificio</span>
+    <span class="hint">Toca una zona verde del terreno · Arrastra para mover</span>
+    <button class="btn sec" id="buildCancel">Cancelar</button>
+  </div>
+
+  <div id="dock">
+    <button class="dbtn hot" id="btnShop"><span class="ico">🏗️</span>Construir</button>
+    <button class="dbtn" id="btnChars"><span class="ico">🧑‍🤝‍🧑</span>Amigos<span class="badge" id="taskBadge" style="display:none">0</span></button>
+    <button class="dbtn" id="btnCollect"><span class="ico">💰</span>Recolectar<span class="badge" id="readyBadge" style="display:none">0</span></button>
+    <button class="dbtn" id="btnQuests"><span class="ico">📋</span>Misiones</button>
+    <button class="dbtn" id="btnLand"><span class="ico">🌱</span>Terreno</button>
+  </div>
+
+  <!-- Tienda -->
+  <div class="overlay" id="shopOv">
+    <div class="sheet">
+      <div class="sheet-head">
+        <h2>🏗️ Tienda del barrio</h2>
+        <span class="sub" id="shopSub"></span>
+        <button class="xbtn" data-close="shopOv">✕</button>
+      </div>
+      <div class="tabs">
+        <div class="tab on" data-shop="buildings">Edificios</div>
+        <div class="tab" data-shop="characters">Personajes</div>
+        <div class="tab" data-shop="decor">Adornos</div>
+      </div>
+      <div class="sheet-body"><div class="grid" id="shopGrid"></div></div>
+    </div>
+  </div>
+
+  <!-- Personajes -->
+  <div class="overlay" id="charOv">
+    <div class="sheet">
+      <div class="sheet-head">
+        <h2>🧑‍🤝‍🧑 Tus vecinos</h2>
+        <span class="sub">Toca uno para darle una tarea</span>
+        <button class="xbtn" data-close="charOv">✕</button>
+      </div>
+      <div class="sheet-body" id="charBody"></div>
+    </div>
+  </div>
+
+  <!-- Tareas de un personaje -->
+  <div class="overlay" id="taskOv">
+    <div class="sheet">
+      <div class="sheet-head">
+        <h2 id="taskTitle">Tareas</h2>
+        <button class="xbtn" data-close="taskOv">✕</button>
+      </div>
+      <div class="sheet-body" id="taskBody"></div>
+    </div>
+  </div>
+
+  <!-- Misiones -->
+  <div class="overlay" id="questOv">
+    <div class="sheet">
+      <div class="sheet-head">
+        <h2>📋 Misiones del barrio</h2>
+        <span class="sub" id="questSub"></span>
+        <button class="xbtn" data-close="questOv">✕</button>
+      </div>
+      <div class="sheet-body" id="questBody"></div>
+    </div>
+  </div>
+
+  <!-- Menú de edificio -->
+  <div class="overlay" id="bldOv">
+    <div class="sheet">
+      <div class="sheet-head">
+        <h2 id="bldTitle">Edificio</h2>
+        <button class="xbtn" data-close="bldOv">✕</button>
+      </div>
+      <div class="sheet-body" id="bldBody"></div>
+    </div>
+  </div>
+
+  <!-- Terreno -->
+  <div class="overlay" id="landOv">
+    <div class="sheet">
+      <div class="sheet-head">
+        <h2>🌱 Terreno</h2>
+        <button class="xbtn" data-close="landOv">✕</button>
+      </div>
+      <div class="sheet-body" id="landBody"></div>
+    </div>
+  </div>
+
+  <div id="toasts"></div>
+
+  <div id="intro">
+    <h1>Pueblo <span>Loco</span></h1>
+    <p>Construye tu barrio, colecciona monedas, manda a tus vecinos a hacer
+       tareas y completa las misiones para hacer crecer el pueblo.</p>
+    <button class="btn go" id="startBtn">▶ Empezar a construir</button>
+    <div class="credits">
+      Juego original inspirado en las mecánicas de los city-builders de EA.<br>
+      Arte, personajes y código 100% originales — hecho para Axael.
+    </div>
+  </div>
+
+  <script>
+/*
+ * Pueblo Loco — Núcleo de reglas del juego (SIN DOM, sin dependencias).
+ * UMD: funciona como global en el browser (window.PuebloCore) y en Node (require).
+ *
+ * Este archivo es la ÚNICA fuente de verdad de economía, progresión y misiones.
+ * La capa de render (game.js) y los tests (tools/test-core.mjs) derivan de aquí.
+ */
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) module.exports = factory();
+  else root.PuebloCore = factory();
+})(typeof self !== 'undefined' ? self : this, function () {
+  'use strict';
+
+  var VERSION = 1;
+  var SAVE_KEY = 'puebloloco.save.v1';
+  var OFFLINE_CAP_MS = 8 * 60 * 60 * 1000; // 8h de acumulación offline máxima
+  var RUSH_WINDOW_SEC = 600; // 1 dona cada ~10 min restantes
+
+  /* ---------------------------------------------------------------- catálogo */
+
+  // Edificios: producen monedas por ciclos. size en tiles.
+  var BUILDINGS = [
+    { def: 'casa',       name: 'Casa de Luis',       cost: 0,      size: 1, interval: 30,  coins: 8,    xp: 10,  level: 1,  color: '#f5c96b', roof: '#c0392b', kind: 'house'   },
+    { def: 'kiosco',     name: 'Kiosco de Diarios',  cost: 150,    size: 1, interval: 45,  coins: 16,   xp: 20,  level: 1,  color: '#7ec8e3', roof: '#2980b9', kind: 'kiosk'    },
+    { def: 'floreria',   name: 'Florería',           cost: 1200,   size: 1, interval: 90,  coins: 34,   xp: 25,  level: 2,  color: '#a8e6a1', roof: '#27ae60', kind: 'shop'     },
+    { def: 'panaderia',  name: 'Panadería',          cost: 600,    size: 2, interval: 120, coins: 48,   xp: 35,  level: 2,  color: '#f0b27a', roof: '#d35400', kind: 'shop'     },
+    { def: 'taller',     name: 'Taller Mecánico',    cost: 3000,   size: 2, interval: 240, coins: 98,   xp: 50,  level: 3,  color: '#95a5a6', roof: '#5d6d7e', kind: 'garage'   },
+    { def: 'cafeteria',  name: 'Cafetería',          cost: 7500,   size: 2, interval: 300, coins: 165,  xp: 65,  level: 4,  color: '#d7bde2', roof: '#7d3c98', kind: 'shop'     },
+    { def: 'cine',       name: 'Cine del Barrio',    cost: 18000,  size: 2, interval: 480, coins: 330,  xp: 90,  level: 5,  color: '#f1948a', roof: '#943126', kind: 'cinema'   },
+    { def: 'escuela',    name: 'Escuela',            cost: 35000,  size: 2, interval: 600, coins: 520,  xp: 120, level: 6,  color: '#f9e79f', roof: '#b7950b', kind: 'school'   },
+    { def: 'hospital',   name: 'Hospital',           cost: 80000,  size: 3, interval: 720, coins: 960,  xp: 180, level: 8,  color: '#ffffff', roof: '#c0392b', kind: 'hospital' },
+    { def: 'comisaria',  name: 'Comisaría',          cost: 150000, size: 2, interval: 900, coins: 1500, xp: 250, level: 10, color: '#aed6f1', roof: '#1a5276', kind: 'office'   },
+    { def: 'estadio',    name: 'Estadio',            cost: 400000, size: 3, interval: 1200,coins: 3200, xp: 400, level: 12, color: '#abebc6', roof: '#148f77', kind: 'stadium'  },
+    { def: 'torre',      name: 'Torre de Oficinas',  cost: 900000, size: 2, interval: 1800,coins: 6000, xp: 600, level: 14, color: '#d5dbdb', roof: '#2e4053', kind: 'tower'    }
+  ];
+
+  // Personajes: se desbloquean con donas; cada uno tiene tareas temporizadas.
+  var CHARACTERS = [
+    { def: 'luis',    name: 'Luis',       donas: 0,  color: '#3498db', hair: '#5d4037', tasks: [
+      { id: 'regar',    name: 'Regar las plantas',    sec: 300,   coins: 60,   xp: 20  },
+      { id: 'pintar',   name: 'Pintar la reja',       sec: 1800,  coins: 400,  xp: 90  },
+      { id: 'siesta',   name: 'Dormir una siesta',    sec: 14400, coins: 1800, xp: 400 }
+    ]},
+    { def: 'nina',    name: 'Nina',       donas: 0,  color: '#e91e63', hair: '#f9e79f', tasks: [
+      { id: 'tarea',    name: 'Hacer la tarea',       sec: 1200,  coins: 150,  xp: 50  },
+      { id: 'jugar',    name: 'Jugar en la plaza',    sec: 600,   coins: 90,   xp: 30  }
+    ]},
+    { def: 'carmen',  name: 'Carmen',     donas: 10, color: '#e67e22', hair: '#212121', tasks: [
+      { id: 'hornear',  name: 'Hornear pan',          sec: 900,   coins: 180,  xp: 45  },
+      { id: 'entregar', name: 'Entregar pedidos',     sec: 3600,  coins: 800,  xp: 160 }
+    ]},
+    { def: 'bruno',   name: 'Bruno',      donas: 10, color: '#8d6e63', hair: '#8d6e63', tasks: [
+      { id: 'cartero',  name: 'Perseguir al cartero', sec: 300,   coins: 70,   xp: 25  },
+      { id: 'excavar',  name: 'Excavar el jardín',    sec: 1500,  coins: 300,  xp: 80  }
+    ]},
+    { def: 'ramon',   name: 'Don Ramón',  donas: 15, color: '#607d8b', hair: '#9e9e9e', tasks: [
+      { id: 'aceite',   name: 'Cambiar aceite',       sec: 1800,  coins: 500,  xp: 100 },
+      { id: 'motor',    name: 'Reparar motor',        sec: 7200,  coins: 2200, xp: 380 }
+    ]},
+    { def: 'ana',     name: 'Profe Ana',  donas: 20, color: '#9b59b6', hair: '#4e342e', tasks: [
+      { id: 'corregir', name: 'Corregir exámenes',    sec: 3600,  coins: 700,  xp: 150 },
+      { id: 'clase',    name: 'Preparar la clase',    sec: 2700,  coins: 450,  xp: 110 }
+    ]},
+    { def: 'sol',     name: 'Dra. Sol',   donas: 30, color: '#00acc1', hair: '#263238', tasks: [
+      { id: 'guardia',  name: 'Turno de guardia',     sec: 7200,  coins: 2000, xp: 350 },
+      { id: 'cirugia',  name: 'Cirugía',              sec: 28800, coins: 8000, xp: 900 }
+    ]},
+    { def: 'alcalde', name: 'Alcalde Vera', donas: 50, color: '#c0392b', hair: '#bdc3c7', tasks: [
+      { id: 'discurso', name: 'Discurso en la plaza', sec: 10800, coins: 3500, xp: 500 },
+      { id: 'parque',   name: 'Inaugurar el parque',  sec: 43200, coins: 12000,xp: 1200 }
+    ]}
+  ];
+
+  // Decoración: cosmética + alimenta misiones. Se coloca automática en tile libre.
+  var DECOR = [
+    { def: 'farol',    name: 'Farol',      cost: 250,   level: 2,  color: '#f4d03f' },
+    { def: 'arbusto',  name: 'Arbusto',    cost: 400,   level: 2,  color: '#52be80' },
+    { def: 'banco',    name: 'Banco',      cost: 800,   level: 3,  color: '#a04000' },
+    { def: 'fuente',   name: 'Fuente',     cost: 3000,  level: 4,  color: '#5dade2' },
+    { def: 'estatua',  name: 'Estatua',    cost: 12000, level: 6,  color: '#b2babb' }
+  ];
+
+  // Terreno: parcelas que se compran para crecer.
+  var LAND_TIERS = [
+    { size: 6,  cost: 0      },
+    { size: 8,  cost: 2000   },
+    { size: 10, cost: 25000  },
+    { size: 12, cost: 300000 }
+  ];
+
+  // Misiones encadenadas. Objetivos evaluados contra el estado.
+  var QUESTS = [
+    { id: 'q1',  name: '¡Bienvenido a Pueblo Loco!',  story: 'Construye tu primera casa junto al kiosco.',            objs: [{ type: 'build', def: 'casa' }],                                  reward: { donas: 10, xp: 50 } },
+    { id: 'q2',  name: 'El barrio despierta',         story: 'Recolecta 60 monedas de tus edificios.',                objs: [{ type: 'coinsEarned', amount: 60 }],                           reward: { donas: 15, xp: 120 } },
+    { id: 'q3',  name: 'Pan fresco cada mañana',      story: 'Levanta la panadería del barrio.',                      objs: [{ type: 'build', def: 'panaderia' }],                            reward: { donas: 20, xp: 150 } },
+    { id: 'q4',  name: 'Conoce a Carmen',             story: 'Desbloquea a Carmen con donas.',                        objs: [{ type: 'unlock', def: 'carmen' }],                              reward: { donas: 25, xp: 180 } },
+    { id: 'q5',  name: 'Manos a la obra',             story: 'Abre el taller mecánico y llega a nivel 4.',            objs: [{ type: 'build', def: 'taller' }, { type: 'level', level: 4 }],reward: { donas: 30, xp: 220 } },
+    { id: 'q6',  name: 'Educación primero',           story: 'Construye la escuela y completa 10 tareas.',            objs: [{ type: 'build', def: 'escuela' }, { type: 'tasksDone', amount: 10 }], reward: { donas: 40, xp: 300 } },
+    { id: 'q7',  name: 'Salud para todos',            story: 'El barrio necesita un hospital.',                       objs: [{ type: 'build', def: 'hospital' }],                             reward: { donas: 50, xp: 400 } },
+    { id: 'q8',  name: 'Zona comercial',              story: 'Ten 5 edificios productivos en pie.',                   objs: [{ type: 'buildings', amount: 5 }],                               reward: { donas: 60, xp: 500 } },
+    { id: 'q9',  name: 'Torre del progreso',          story: 'Construye la Torre de Oficinas a nivel 10.',            objs: [{ type: 'build', def: 'torre' }, { type: 'level', level: 10 }],reward: { donas: 100, xp: 700 } },
+    { id: 'q10', name: 'El corazón del pueblo',       story: 'Decora con 4 adornos y llega a nivel 12.',              objs: [{ type: 'decor', amount: 4 }, { type: 'level', level: 12 }],  reward: { donas: 150, xp: 900 } },
+    { id: 'q11', name: '¡Alcalde electo!',            story: 'Desbloquea al Alcalde Vera.',                           objs: [{ type: 'unlock', def: 'alcalde' }],                             reward: { donas: 200, xp: 1100 } },
+    { id: 'q12', name: 'Pueblo Loco legendario',      story: 'Alcanza el nivel 15 para consagrar tu barrio.',         objs: [{ type: 'level', level: 15 }],                                   reward: { donas: 500, xp: 1500 } }
+  ];
+
+  /* ------------------------------------------------------------- progresión */
+
+  function xpForLevel(level) {
+    return Math.round(80 * Math.pow(level, 1.55));
+  }
+
+  function buildingDef(def) { return BUILDINGS.find(function (b) { return b.def === def; }); }
+  function characterDef(def) { return CHARACTERS.find(function (c) { return c.def === def; }); }
+  function decorDef(def) { return DECOR.find(function (d) { return d.def === def; }); }
+  function taskDef(charDef, taskId) {
+    var c = characterDef(charDef);
+    if (!c) return null;
+    return c.tasks.find(function (t) { return t.id === taskId; }) || null;
+  }
+  function landTier(state) { return LAND_TIERS[state.landTier]; }
+  function nextLandTier(state) {
+    var i = state.landTier + 1;
+    return i < LAND_TIERS.length ? LAND_TIERS[i] : null;
+  }
+
+  /* ------------------------------------------------------------ estado base */
+
+  function createState() {
+    return {
+      v: VERSION,
+      coins: 500,
+      donas: 30,
+      xp: 0,
+      level: 1,
+      landTier: 0,
+      buildings: [],   // {id, def, x, y, lastAt, ready}
+      decor: [],       // {id, def, x, y}
+      characters: CHARACTERS.map(function (c) {
+        return { def: c.def, unlocked: c.donas === 0, task: null };
+      }),
+      questIndex: 0,
+      stats: { coinsEarned: 0, tasksDone: 0, buildingsBuilt: 0 },
+      lastSeen: Date.now()
+    };
+  }
+
+  // Coloca el kiosco inicial para que el pueblo no nazca vacío.
+  function seedStarter(state, now) {
+    var mid = Math.floor(landTier(state).size / 2);
+    var b = { id: nextId(), def: 'kiosco', x: mid - 1, y: mid, lastAt: now, ready: 0 };
+    state.buildings.push(b);
+    state.stats.buildingsBuilt++;
+    return b;
+  }
+
+  var _idCounter = 1;
+  function nextId() { return 'e' + (_idCounter++) + '_' + Math.floor(Math.random() * 1e6); }
+
+  /* ------------------------------------------------------------- utilidades */
+
+  function occupancyMap(state) {
+    var map = {};
+    state.buildings.forEach(function (b) {
+      var def = buildingDef(b.def);
+      for (var dx = 0; dx < def.size; dx++)
+        for (var dy = 0; dy < def.size; dy++)
+          map[(b.x + dx) + ',' + (b.y + dy)] = b;
+    });
+    state.decor.forEach(function (d) { map[d.x + ',' + d.y] = d; });
+    return map;
+  }
+
+  function canPlaceBuilding(state, def, x, y) {
+    var d = buildingDef(def);
+    if (!d) return { ok: false, reason: 'Edificio desconocido' };
+    if (state.level < d.level) return { ok: false, reason: 'Requiere nivel ' + d.level };
+    if (state.coins < d.cost) return { ok: false, reason: 'Monedas insuficientes' };
+    var size = landTier(state).size;
+    if (x < 0 || y < 0 || x + d.size > size || y + d.size > size)
+      return { ok: false, reason: 'Fuera del terreno' };
+    var occ = occupancyMap(state);
+    for (var dx = 0; dx < d.size; dx++)
+      for (var dy = 0; dy < d.size; dy++)
+        if (occ[(x + dx) + ',' + (y + dy)]) return { ok: false, reason: 'Espacio ocupado' };
+    return { ok: true };
+  }
+
+  function freeTile(state) {
+    var size = landTier(state).size;
+    var occ = occupancyMap(state);
+    for (var tries = 0; tries < 500; tries++) {
+      var x = Math.floor(Math.random() * size);
+      var y = Math.floor(Math.random() * size);
+      if (!occ[x + ',' + y] && x > 0 && y > 0) return { x: x, y: y };
+    }
+    for (var x2 = 1; x2 < size - 1; x2++)
+      for (var y2 = 1; y2 < size - 1; y2++)
+        if (!occ[x2 + ',' + y2]) return { x: x2, y: y2 };
+    return null;
+  }
+
+  /* ------------------------------------------------------------- acciones */
+
+  function addXp(state, amount) {
+    if (amount <= 0) return 0;
+    state.xp += amount;
+    var gained = 0;
+    while (state.xp >= xpForLevel(state.level)) {
+      state.xp -= xpForLevel(state.level);
+      state.level++;
+      gained++;
+    }
+    return gained;
+  }
+
+  function placeBuilding(state, defId, x, y, now) {
+    var check = canPlaceBuilding(state, defId, x, y);
+    if (!check.ok) return check;
+    var d = buildingDef(defId);
+    state.coins -= d.cost;
+    state.buildings.push({ id: nextId(), def: defId, x: x, y: y, lastAt: now, ready: 0 });
+    state.stats.buildingsBuilt++;
+    addXp(state, d.xp);
+    var events = evaluateQuests(state, now);
+    return { ok: true, events: events };
+  }
+
+  function unlockCharacter(state, defId, now) {
+    var c = characterDef(defId);
+    if (!c) return { ok: false, reason: 'Personaje desconocido' };
+    var entry = state.characters.find(function (ch) { return ch.def === defId; });
+    if (entry.unlocked) return { ok: false, reason: 'Ya está desbloqueado' };
+    if (state.donas < c.donas) return { ok: false, reason: 'Donas insuficientes' };
+    state.donas -= c.donas;
+    entry.unlocked = true;
+    var events = evaluateQuests(state, now);
+    return { ok: true, events: events };
+  }
+
+  function buyDecor(state, defId, now) {
+    var d = decorDef(defId);
+    if (!d) return { ok: false, reason: 'Adorno desconocido' };
+    if (state.level < d.level) return { ok: false, reason: 'Requiere nivel ' + d.level };
+    if (state.coins < d.cost) return { ok: false, reason: 'Monedas insuficientes' };
+    var tile = freeTile(state);
+    if (!tile) return { ok: false, reason: 'No hay espacio libre' };
+    state.coins -= d.cost;
+    state.decor.push({ id: nextId(), def: defId, x: tile.x, y: tile.y });
+    var events = evaluateQuests(state, now);
+    return { ok: true, events: events };
+  }
+
+  function expandLand(state, now) {
+    var next = nextLandTier(state);
+    if (!next) return { ok: false, reason: 'Terreno máximo alcanzado' };
+    if (state.coins < next.cost) return { ok: false, reason: 'Monedas insuficientes' };
+    state.coins -= next.cost;
+    state.landTier++;
+    var events = evaluateQuests(state, now);
+    return { ok: true, events: events, size: landTier(state).size };
+  }
+
+  // Vender un edificio: reembolso del 50%. Necesario para reorganizar el
+  // terreno cuando una misión pide un edificio grande y la cuadrícula está llena.
+  function sellBuilding(state, buildingId, now) {
+    var b = state.buildings.find(function (x) { return x.id === buildingId; });
+    if (!b) return { ok: false, reason: 'Edificio no encontrado' };
+    var def = buildingDef(b.def);
+    var refund = Math.floor(def.cost * 0.5);
+    state.coins += refund;
+    state.buildings = state.buildings.filter(function (x) { return x.id !== buildingId; });
+    var events = evaluateQuests(state, now);
+    return { ok: true, refund: refund, events: events };
+  }
+
+  function sellDecor(state, decorId, now) {
+    var d = state.decor.find(function (x) { return x.id === decorId; });
+    if (!d) return { ok: false, reason: 'Adorno no encontrado' };
+    var def = decorDef(d.def);
+    var refund = Math.floor(def.cost * 0.5);
+    state.coins += refund;
+    state.decor = state.decor.filter(function (x) { return x.id !== decorId; });
+    var events = evaluateQuests(state, now);
+    return { ok: true, refund: refund, events: events };
+  }
+
+  function accrueBuilding(b, now) {
+    var def = buildingDef(b.def);
+    if (!def) return;
+    var elapsed = now - b.lastAt;
+    var step = def.interval * 1000;
+    if (elapsed < step) return;
+    var cycles = Math.floor(elapsed / step);
+    var cap = Math.max(1, Math.floor(OFFLINE_CAP_MS / step));
+    if (cycles > cap) cycles = cap;
+    b.ready += cycles * def.coins;
+    b.lastAt += cycles * step;
+  }
+
+  function collectBuilding(state, buildingId, now) {
+    var b = state.buildings.find(function (x) { return x.id === buildingId; });
+    if (!b) return { ok: false, reason: 'Edificio no encontrado' };
+    accrueBuilding(b, now);
+    if (b.ready <= 0) return { ok: false, reason: 'Nada que recolectar' };
+    var amount = b.ready;
+    state.coins += amount;
+    state.stats.coinsEarned += amount;
+    b.ready = 0;
+    b.lastAt = now;
+    var events = evaluateQuests(state, now);
+    return { ok: true, amount: amount, events: events };
+  }
+
+  function collectAll(state, now) {
+    var total = 0;
+    state.buildings.forEach(function (b) {
+      accrueBuilding(b, now);
+      total += b.ready;
+      b.ready = 0;
+      b.lastAt = now;
+    });
+    if (total <= 0) return { ok: false, reason: 'Nada que recolectar' };
+    state.coins += total;
+    state.stats.coinsEarned += total;
+    var events = evaluateQuests(state, now);
+    return { ok: true, amount: total, events: events };
+  }
+
+  function startTask(state, charDefId, taskId, now) {
+    var entry = state.characters.find(function (c) { return c.def === charDefId; });
+    if (!entry || !entry.unlocked) return { ok: false, reason: 'Personaje no disponible' };
+    if (entry.task) return { ok: false, reason: entry.task.done ? 'Reclama la recompensa primero' : 'Ya tiene una tarea en curso' };
+    var t = taskDef(charDefId, taskId);
+    if (!t) return { ok: false, reason: 'Tarea desconocida' };
+    entry.task = { taskId: taskId, endAt: now + t.sec * 1000, done: false };
+    return { ok: true, endAt: entry.task.endAt };
+  }
+
+  function completeTask(state, charDefId, now) {
+    var entry = state.characters.find(function (c) { return c.def === charDefId; });
+    if (!entry || !entry.task) return { ok: false, reason: 'Sin tarea' };
+    if (!entry.task.done && now < entry.task.endAt)
+      return { ok: false, reason: 'La tarea aún no termina' };
+    var t = taskDef(charDefId, entry.task.taskId);
+    state.coins += t.coins;
+    state.stats.coinsEarned += t.coins;
+    state.stats.tasksDone++;
+    var gained = addXp(state, t.xp);
+    entry.task = null;
+    var events = evaluateQuests(state, now);
+    return { ok: true, coins: t.coins, xp: t.xp, levels: gained, events: events };
+  }
+
+  function rushCost(state, charDefId, now) {
+    var entry = state.characters.find(function (c) { return c.def === charDefId; });
+    if (!entry || !entry.task) return 0;
+    var remain = Math.max(0, entry.task.endAt - now);
+    return Math.max(1, Math.ceil(remain / (RUSH_WINDOW_SEC * 1000)));
+  }
+
+  function rushTask(state, charDefId, now) {
+    var cost = rushCost(state, charDefId, now);
+    if (state.donas < cost) return { ok: false, reason: 'Donas insuficientes' };
+    state.donas -= cost;
+    var entry = state.characters.find(function (c) { return c.def === charDefId; });
+    entry.task.done = true;
+    entry.task.endAt = now;
+    return completeTask(state, charDefId, now);
+  }
+
+  /* ---------------------------------------------------------------- tiempo */
+
+  // Avanza producción y tareas. Devuelve resumen de lo que cambió.
+  function tick(state, now) {
+    var out = { coinsAccrued: 0, tasksReady: 0, levels: 0 };
+    state.buildings.forEach(function (b) {
+      var before = b.ready;
+      accrueBuilding(b, now);
+      out.coinsAccrued += b.ready - before;
+    });
+    state.characters.forEach(function (c) {
+      if (c.task && !c.task.done && now >= c.task.endAt) {
+        c.task.done = true;
+        out.tasksReady++;
+      }
+    });
+    var events = evaluateQuests(state, now);
+    out.events = events;
+    return out;
+  }
+
+  // Carga una partida: aplica progreso offline (limitado) y reevalúa misiones.
+  // Si el JSON viene vacío, corrupto o de otra versión, arranca partida nueva.
+  function load(json, now, storage) {
+    now = now || Date.now();
+    if (!json && storage && storage.getItem) json = storage.getItem(SAVE_KEY);
+    var state = null;
+    if (json) {
+      try { state = JSON.parse(json); } catch (e) { state = null; }
+    }
+    if (!state || state.v !== VERSION) {
+      var fresh = createState();
+      seedStarter(fresh, now);
+      var ev = evaluateQuests(fresh, now);
+      return { state: fresh, offlineCoins: 0, events: ev, fresh: true };
+    }
+    return loadState(json, now);
+  }
+
+  // Carga una partida guardada: aplica progreso offline (limitado) y reevalúa misiones.
+  function loadState(raw, now) {
+    var state = typeof raw === 'string' ? JSON.parse(raw) : JSON.parse(JSON.stringify(raw));
+    if (!state || state.v !== VERSION) state = createState();
+    var elapsed = Math.max(0, Math.min(now - (state.lastSeen || now), 7 * 24 * 3600 * 1000));
+    state.lastSeen = now;
+    // Progreso offline: recolectar todo lo listo para que el jugador lo reclame.
+    var offlineCoins = 0;
+    state.buildings.forEach(function (b) {
+      var def = buildingDef(b.def);
+      if (!def) return;
+      var step = def.interval * 1000;
+      var cycles = Math.floor(Math.min(elapsed, OFFLINE_CAP_MS) / step);
+      b.ready += cycles * def.coins;
+      b.lastAt = now;
+      offlineCoins += cycles * def.coins;
+    });
+    state.characters.forEach(function (c) {
+      if (c.task && !c.task.done && now >= c.task.endAt) c.task.done = true;
+    });
+    var events = evaluateQuests(state, now);
+    return { state: state, offlineCoins: offlineCoins, events: events };
+  }
+
+  /* -------------------------------------------------------------- misiones */
+
+  function activeQuest(state) {
+    return state.questIndex < QUESTS.length ? QUESTS[state.questIndex] : null;
+  }
+
+  function objectiveDone(state, o) {
+    switch (o.type) {
+      case 'build':      return state.buildings.some(function (b) { return b.def === o.def; });
+      case 'unlock':     return state.characters.some(function (c) { return c.def === o.def && c.unlocked; });
+      case 'level':      return state.level >= o.level;
+      case 'coinsEarned':return state.stats.coinsEarned >= o.amount;
+      case 'tasksDone':  return state.stats.tasksDone >= o.amount;
+      case 'buildings':  return state.buildings.length >= o.amount;
+      case 'decor':      return state.decor.length >= o.amount;
+      default:           return false;
+    }
+  }
+
+  function questProgress(state) {
+    var q = activeQuest(state);
+    if (!q) return null;
+    return {
+      quest: q,
+      objs: q.objs.map(function (o) { return { obj: o, done: objectiveDone(state, o) }; }),
+      complete: q.objs.every(function (o) { return objectiveDone(state, o); })
+    };
+  }
+
+  // Evalúa y completa misiones encadenadas. Devuelve eventos para la UI.
+  function evaluateQuests(state, now) {
+    var events = [];
+    var guard = 0;
+    while (guard++ < 50) {
+      var q = activeQuest(state);
+      if (!q) break;
+      if (!q.objs.every(function (o) { return objectiveDone(state, o); })) break;
+      var r = q.reward || {};
+      if (r.coins) { state.coins += r.coins; state.stats.coinsEarned += r.coins; }
+      if (r.donas) state.donas += r.donas;
+      if (r.xp) addXp(state, r.xp);
+      state.questIndex++;
+      events.push({ type: 'quest', quest: q, reward: r });
+    }
+    return events;
+  }
+
+  /* ------------------------------------------------------------------ I/O */
+
+  function save(state, storage) {
+    state.lastSeen = Date.now();
+    var json = JSON.stringify(state);
+    if (storage && storage.setItem) storage.setItem(SAVE_KEY, json);
+    return json;
+  }
+
+  return {
+    VERSION: VERSION, SAVE_KEY: SAVE_KEY, OFFLINE_CAP_MS: OFFLINE_CAP_MS,
+    BUILDINGS: BUILDINGS, CHARACTERS: CHARACTERS, DECOR: DECOR,
+    QUESTS: QUESTS, LAND_TIERS: LAND_TIERS,
+    xpForLevel: xpForLevel,
+    buildingDef: buildingDef, characterDef: characterDef, decorDef: decorDef,
+    taskDef: taskDef, landTier: landTier, nextLandTier: nextLandTier,
+    createState: createState, seedStarter: seedStarter,
+    occupancyMap: occupancyMap, canPlaceBuilding: canPlaceBuilding, freeTile: freeTile,
+    addXp: addXp,
+    placeBuilding: placeBuilding, unlockCharacter: unlockCharacter, buyDecor: buyDecor,
+    expandLand: expandLand, sellBuilding: sellBuilding, sellDecor: sellDecor,
+    collectBuilding: collectBuilding, collectAll: collectAll,
+    startTask: startTask, completeTask: completeTask, rushTask: rushTask, rushCost: rushCost,
+    tick: tick, loadState: loadState,
+    activeQuest: activeQuest, questProgress: questProgress, objectiveDone: objectiveDone,
+    evaluateQuests: evaluateQuests,
+    save: save, load: load
+  };
+});
+
+</script>
+<script>
+/*
+ * Pueblo Loco — capa de render e interacción.
+ * Consume window.PuebloCore (core/economy.js). Sin dependencias externas.
+ */
+(function () {
+  'use strict';
+  var C = window.PuebloCore;
+  var S = null;              // estado del juego (del core)
+  var cv = document.getElementById('cv');
+  var ctx = cv.getContext('2d');
+
+  /* ------------------------------------------------------------ utilidades */
+  function fmt(n) {
+    n = Math.floor(n);
+    if (n >= 1e12) return (n / 1e12).toFixed(1) + 'B';
+    if (n >= 1e9) return (n / 1e9).toFixed(1) + 'G';
+    if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M';
+    if (n >= 1e4) return (n / 1e3).toFixed(1) + 'K';
+    return String(n);
+  }
+  function fmtTime(sec) {
+    sec = Math.max(0, Math.ceil(sec));
+    if (sec < 60) return '0:' + String(sec).padStart(2, '0');
+    if (sec < 3600) return Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0');
+    var h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60);
+    return h + 'h ' + m + 'm';
+  }
+  function $(id) { return document.getElementById(id); }
+  function el(tag, cls, html) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (html != null) e.innerHTML = html;
+    return e;
+  }
+
+  /* ---------------------------------------------------------------- audio */
+  var AC = null;
+  function blip(freq, dur, type, vol) {
+    try {
+      if (!AC) AC = new (window.AudioContext || window.webkitAudioContext)();
+      if (AC.state === 'suspended') AC.resume();
+      var o = AC.createOscillator(), g = AC.createGain();
+      o.type = type || 'sine'; o.frequency.value = freq || 660;
+      g.gain.setValueAtTime(vol || 0.08, AC.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.001, AC.currentTime + (dur || 0.12));
+      o.connect(g); g.connect(AC.destination);
+      o.start(); o.stop(AC.currentTime + (dur || 0.12));
+    } catch (e) { /* sin audio, sin problema */ }
+  }
+  var sfx = {
+    coin: function () { blip(880, 0.09, 'sine', 0.07); setTimeout(function(){ blip(1320, 0.1, 'sine', 0.06); }, 60); },
+    tap: function () { blip(520, 0.06, 'triangle', 0.05); },
+    place: function () { blip(300, 0.12, 'square', 0.05); setTimeout(function(){ blip(600, 0.14, 'square', 0.05); }, 70); },
+    level: function () { blip(523, 0.12, 'sine', 0.08); setTimeout(function(){ blip(659, 0.12, 'sine', 0.08); }, 100); setTimeout(function(){ blip(784, 0.2, 'sine', 0.08); }, 200); },
+    task: function () { blip(440, 0.1, 'triangle', 0.06); },
+    err: function () { blip(180, 0.18, 'sawtooth', 0.05); }
+  };
+
+  /* --------------------------------------------------------------- toasts */
+  function toast(msg, kind) {
+    var t = el('div', 'toast ' + (kind || ''), msg);
+    $('toasts').appendChild(t);
+    setTimeout(function () { t.classList.add('fade'); }, 2400);
+    setTimeout(function () { t.remove(); }, 3000);
+  }
+
+  /* ------------------------------------------------------------ partículas */
+  var particles = [];
+  var floats = [];
+  function burstCoin(wx, wy, n) {
+    for (var i = 0; i < (n || 8); i++) {
+      particles.push({
+        x: wx, y: wy,
+        vx: (Math.random() - 0.5) * 90,
+        vy: -60 - Math.random() * 90,
+        life: 0.7 + Math.random() * 0.4, age: 0,
+        ico: Math.random() < 0.8 ? '🪙' : '✨'
+      });
+    }
+  }
+  function floatText(wx, wy, txt, color) {
+    floats.push({ x: wx, y: wy, txt: txt, color: color || '#ffd166', age: 0, life: 1.3 });
+  }
+
+  /* --------------------------------------------------------------- cámara */
+  var cam = { x: 3, y: 3, scale: 1 };
+  var TILE = 64;
+  function fitView() {
+    var size = C.landTier(S).size;
+    var w = cv.clientWidth, h = cv.clientHeight;
+    var s = Math.min(w / ((size + 1.5) * TILE), h / ((size + 3.2) * TILE));
+    cam.scale = Math.max(0.45, Math.min(1.5, s));
+    cam.x = size / 2; cam.y = size / 2 - 0.4;
+  }
+  function w2s(wx, wy) {
+    var ts = TILE * cam.scale;
+    return {
+      x: (wx - cam.x) * ts + cv.clientWidth / 2,
+      y: (wy - cam.y) * ts + cv.clientHeight / 2
+    };
+  }
+  function s2w(sx, sy) {
+    var ts = TILE * cam.scale;
+    return {
+      x: (sx - cv.clientWidth / 2) / ts + cam.x,
+      y: (sy - cv.clientHeight / 2) / ts + cam.y
+    };
+  }
+
+  /* ------------------------------------------------- posiciones de vecinos */
+  var wander = {}; // def -> {x, y, tx, ty, next}
+  function ensureWander() {
+    var size = C.landTier(S).size;
+    S.characters.forEach(function (c) {
+      if (!c.unlocked) return;
+      if (!wander[c.def]) {
+        wander[c.def] = {
+          x: Math.random() * (size - 2) + 1,
+          y: Math.random() * (size - 2) + 1,
+          tx: Math.random() * (size - 2) + 1,
+          ty: Math.random() * (size - 2) + 1,
+          next: 0
+        };
+      }
+    });
+  }
+  function updateWander(dt, now) {
+    var size = C.landTier(S).size;
+    S.characters.forEach(function (c) {
+      if (!c.unlocked) return;
+      var w = wander[c.def];
+      if (!w) return;
+      var busy = !!c.task && !c.task.done;
+      if (busy) return; // parado mientras trabaja
+      if (now > w.next) {
+        w.tx = Math.random() * (size - 2) + 1;
+        w.ty = Math.random() * (size - 2) + 1;
+        w.next = now + 2500 + Math.random() * 4000;
+      }
+      var dx = w.tx - w.x, dy = w.ty - w.y;
+      var d = Math.hypot(dx, dy);
+      if (d > 0.08) {
+        var sp = 1.1 * dt; // tiles/seg
+        w.x += dx / d * Math.min(sp, d);
+        w.y += dy / d * Math.min(sp, d);
+      }
+    });
+  }
+
+  /* ---------------------------------------------------------------- dibujo */
+  function roundRect(x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+
+  function drawTiles(size, t) {
+    var occ = C.occupancyMap(S);
+    var ts = TILE * cam.scale;
+    for (var y = 0; y < size; y++) {
+      for (var x = 0; x < size; x++) {
+        var p = w2s(x, y);
+        var free = !occ[x + ',' + y];
+        // césped
+        var g = ctx.createLinearGradient(p.x, p.y, p.x, p.y + ts);
+        g.addColorStop(0, ((x + y) % 2 === 0) ? '#6faf4e' : '#68a748');
+        g.addColorStop(1, '#5c9941');
+        ctx.fillStyle = g;
+        ctx.fillRect(p.x, p.y, ts + 0.5, ts + 0.5);
+        // textura sutil
+        if (cam.scale > 0.7) {
+          ctx.fillStyle = 'rgba(255,255,255,0.045)';
+          var wob = Math.sin(t / 900 + x * 7 + y * 3) * 0.5 + 0.5;
+          ctx.fillRect(p.x + ts * 0.2 + wob * ts * 0.1, p.y + ts * 0.65, ts * 0.16, ts * 0.06);
+          ctx.fillRect(p.x + ts * 0.6, p.y + ts * 0.3, ts * 0.12, ts * 0.05);
+        }
+      }
+    }
+    // borde del terreno
+    var p0 = w2s(0, 0), p1 = w2s(size, size);
+    ctx.strokeStyle = 'rgba(0,0,0,0.25)';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(p0.x, p0.y, p1.x - p0.x, p1.y - p0.y);
+  }
+
+  function drawBuilding(b, def, t, now) {
+    var ts = TILE * cam.scale;
+    var p = w2s(b.x, b.y);
+    var w = ts * def.size, h = ts * def.size;
+    var x = p.x, y = p.y;
+
+    // sombra
+    ctx.fillStyle = 'rgba(0,0,0,0.22)';
+    ctx.beginPath();
+    ctx.ellipse(x + w / 2, y + h - ts * 0.06, w * 0.42, h * 0.1, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    var pad = ts * 0.08;
+    var bw = w - pad * 2, bh = h * 0.62 - pad;
+    var bx = x + pad, by = y + h * 0.32 - pad;
+
+    switch (def.kind) {
+      case 'house': {
+        ctx.fillStyle = def.color; roundRect(bx, by + bh * 0.25, bw, bh * 0.75, ts * 0.05); ctx.fill();
+        ctx.fillStyle = def.roof;
+        ctx.beginPath();
+        ctx.moveTo(bx - ts * 0.05, by + bh * 0.28);
+        ctx.lineTo(bx + bw / 2, by - bh * 0.12);
+        ctx.lineTo(bx + bw + ts * 0.05, by + bh * 0.28);
+        ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#5d4037';
+        ctx.fillRect(bx + bw * 0.42, by + bh * 0.62, bw * 0.16, bh * 0.38); // puerta
+        ctx.fillStyle = '#b3e5fc';
+        ctx.fillRect(bx + bw * 0.14, by + bh * 0.4, bw * 0.18, bh * 0.2); // ventana izq
+        ctx.fillRect(bx + bw * 0.68, by + bh * 0.4, bw * 0.18, bh * 0.2); // ventana der
+        break;
+      }
+      case 'kiosk': {
+        ctx.fillStyle = def.color; roundRect(bx, by + bh * 0.3, bw, bh * 0.7, ts * 0.06); ctx.fill();
+        // rayas del techo
+        ctx.save();
+        roundRect(bx, by + bh * 0.3, bw, bh * 0.7, ts * 0.06); ctx.clip();
+        for (var i = 0; i < 6; i++) {
+          ctx.fillStyle = i % 2 ? def.roof : '#fff';
+          ctx.fillRect(bx + (i * bw) / 6, by + bh * 0.3, bw / 6, bh * 0.16);
+        }
+        ctx.restore();
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold ' + Math.max(8, ts * 0.16) + 'px sans-serif';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText('DIARIOS', bx + bw / 2, by + bh * 0.62);
+        break;
+      }
+      case 'shop': {
+        ctx.fillStyle = def.color; roundRect(bx, by + bh * 0.2, bw, bh * 0.8, ts * 0.05); ctx.fill();
+        ctx.save();
+        roundRect(bx, by + bh * 0.2, bw, bh * 0.8, ts * 0.05); ctx.clip();
+        for (var i = 0; i < 8; i++) {
+          ctx.fillStyle = i % 2 ? def.roof : '#fff8f0';
+          ctx.fillRect(bx + (i * bw) / 8, by + bh * 0.2, bw / 8, bh * 0.18);
+        }
+        ctx.fillStyle = 'rgba(0,0,0,0.25)';
+        ctx.fillRect(bx + bw * 0.1, by + bh * 0.62, bw * 0.3, bh * 0.3);
+        ctx.fillRect(bx + bw * 0.6, by + bh * 0.62, bw * 0.3, bh * 0.3);
+        ctx.restore();
+        ctx.fillStyle = '#3e2723';
+        ctx.font = 'bold ' + Math.max(8, ts * 0.13) + 'px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(def.def === 'panaderia' ? '🥐' : def.def === 'cafeteria' ? '☕' : '🌷', bx + bw / 2, by + bh * 0.5);
+        break;
+      }
+      case 'garage': {
+        ctx.fillStyle = def.color; roundRect(bx, by + bh * 0.15, bw, bh * 0.85, ts * 0.05); ctx.fill();
+        ctx.fillStyle = '#455a64';
+        roundRect(bx + bw * 0.12, by + bh * 0.45, bw * 0.76, bh * 0.55, ts * 0.04); ctx.fill();
+        ctx.strokeStyle = '#90a4ae'; ctx.lineWidth = Math.max(1, ts * 0.015);
+        for (var i = 1; i < 5; i++) {
+          ctx.beginPath();
+          ctx.moveTo(bx + bw * 0.12, by + bh * (0.45 + i * 0.11));
+          ctx.lineTo(bx + bw * 0.88, by + bh * (0.45 + i * 0.11));
+          ctx.stroke();
+        }
+        ctx.fillStyle = def.roof;
+        ctx.fillRect(bx, by + bh * 0.08, bw, bh * 0.09);
+        break;
+      }
+      case 'cinema': {
+        ctx.fillStyle = def.color; roundRect(bx, by + bh * 0.25, bw, bh * 0.75, ts * 0.05); ctx.fill();
+        ctx.fillStyle = '#3e2723';
+        roundRect(bx + bw * 0.08, by + bh * 0.28, bw * 0.84, bh * 0.2, ts * 0.03); ctx.fill();
+        ctx.fillStyle = '#ffe082';
+        ctx.font = 'bold ' + Math.max(7, ts * 0.11) + 'px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('CINE', bx + bw / 2, by + bh * 0.38);
+        // lucecitas
+        for (var i = 0; i < 7; i++) {
+          var on = (Math.floor(t / 350) + i) % 3 !== 0;
+          ctx.fillStyle = on ? '#ffeb3b' : 'rgba(255,235,59,0.25)';
+          ctx.beginPath();
+          ctx.arc(bx + bw * (0.12 + i * 0.13), by + bh * 0.62, Math.max(1.2, ts * 0.025), 0, Math.PI * 2);
+          ctx.fill();
+        }
+        break;
+      }
+      case 'school': {
+        ctx.fillStyle = def.color; roundRect(bx, by + bh * 0.25, bw, bh * 0.75, ts * 0.04); ctx.fill();
+        ctx.fillStyle = def.roof;
+        ctx.fillRect(bx, by + bh * 0.18, bw, bh * 0.08);
+        ctx.fillStyle = def.roof;
+        ctx.fillRect(bx + bw * 0.36, by - bh * 0.18, bw * 0.28, bh * 0.46); // campanario
+        ctx.beginPath();
+        ctx.moveTo(bx + bw * 0.32, by - bh * 0.18);
+        ctx.lineTo(bx + bw * 0.5, by - bh * 0.34);
+        ctx.lineTo(bx + bw * 0.68, by - bh * 0.18);
+        ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#5d4037';
+        ctx.fillRect(bx + bw * 0.44, by + bh * 0.6, bw * 0.12, bh * 0.4);
+        ctx.fillStyle = '#b3e5fc';
+        ctx.fillRect(bx + bw * 0.12, by + bh * 0.45, bw * 0.14, bh * 0.14);
+        ctx.fillRect(bx + bw * 0.74, by + bh * 0.45, bw * 0.14, bh * 0.14);
+        break;
+      }
+      case 'hospital': {
+        ctx.fillStyle = def.color; roundRect(bx, by + bh * 0.18, bw, bh * 0.82, ts * 0.04); ctx.fill();
+        ctx.fillStyle = def.roof;
+        ctx.fillRect(bx, by + bh * 0.1, bw, bh * 0.09);
+        ctx.fillStyle = '#e53935';
+        var cx = bx + bw / 2 - bh * 0.13, cy = by + bh * 0.42, s = bh * 0.26;
+        ctx.fillRect(cx + s * 0.3, cy, s * 0.4, s);
+        ctx.fillRect(cx, cy + s * 0.3, s, s * 0.4);
+        ctx.fillStyle = '#90a4ae';
+        ctx.fillRect(bx + bw * 0.1, by + bh * 0.72, bw * 0.2, bh * 0.28);
+        ctx.fillRect(bx + bw * 0.7, by + bh * 0.72, bw * 0.2, bh * 0.28);
+        break;
+      }
+      case 'office': {
+        ctx.fillStyle = def.color; roundRect(bx, by + bh * 0.12, bw, bh * 0.88, ts * 0.04); ctx.fill();
+        ctx.fillStyle = def.roof;
+        ctx.fillRect(bx, by + bh * 0.05, bw, bh * 0.08);
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold ' + Math.max(8, ts * 0.15) + 'px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('★', bx + bw / 2, by + bh * 0.45);
+        ctx.fillStyle = '#1a5276';
+        ctx.fillRect(bx + bw * 0.42, by + bh * 0.68, bw * 0.16, bh * 0.32);
+        break;
+      }
+      case 'stadium': {
+        ctx.fillStyle = def.color;
+        ctx.beginPath();
+        ctx.ellipse(x + w / 2, y + h * 0.62, w * 0.44, h * 0.3, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = def.roof;
+        ctx.beginPath();
+        ctx.ellipse(x + w / 2, y + h * 0.62, w * 0.3, h * 0.2, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#145a32';
+        ctx.beginPath();
+        ctx.ellipse(x + w / 2, y + h * 0.62, w * 0.18, h * 0.12, 0, 0, Math.PI * 2);
+        ctx.fill();
+        // focos
+        for (var i = 0; i < 4; i++) {
+          var on = (Math.floor(t / 500) + i) % 2 === 0;
+          ctx.fillStyle = on ? '#fff59d' : 'rgba(255,245,157,0.3)';
+          ctx.beginPath();
+          ctx.arc(x + w * (0.2 + i * 0.2), y + h * 0.3, Math.max(1.5, ts * 0.03), 0, Math.PI * 2);
+          ctx.fill();
+        }
+        break;
+      }
+      case 'tower': {
+        ctx.fillStyle = def.color;
+        roundRect(bx + bw * 0.18, by - bh * 0.35, bw * 0.64, bh * 1.35, ts * 0.04);
+        ctx.fill();
+        ctx.fillStyle = def.roof;
+        ctx.fillRect(bx + bw * 0.18, by - bh * 0.42, bw * 0.64, bh * 0.09);
+        // ventanas
+        ctx.fillStyle = '#85c1e9';
+        for (var r = 0; r < 4; r++)
+          for (var c2 = 0; c2 < 3; c2++) {
+            var lit = (Math.floor(t / 1200) + r * 3 + c2) % 4 !== 0;
+            ctx.fillStyle = lit ? '#f9e79f' : '#2e4053';
+            ctx.fillRect(bx + bw * (0.26 + c2 * 0.17), by + bh * (-0.2 + r * 0.28), bw * 0.11, bh * 0.15);
+          }
+        break;
+      }
+      default: {
+        ctx.fillStyle = def.color; roundRect(bx, by, bw, bh, ts * 0.06); ctx.fill();
+      }
+    }
+
+    // burbuja de monedas listas
+    if (b.ready > 0) {
+      var bob = Math.sin(t / 300 + b.x * 5) * ts * 0.05;
+      var bx2 = x + w / 2, by2 = y - ts * 0.12 + bob;
+      ctx.fillStyle = 'rgba(20,26,38,0.9)';
+      ctx.beginPath(); ctx.arc(bx2, by2, ts * 0.21, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#ffd166'; ctx.lineWidth = 2; ctx.stroke();
+      ctx.font = Math.max(10, ts * 0.2) + 'px sans-serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('🪙', bx2, by2);
+    }
+  }
+
+  function drawCharacter(cd, c, now, t) {
+    if (!c.unlocked) return;
+    var w = wander[c.def];
+    if (!w) return;
+    var ts = TILE * cam.scale;
+    var p = w2s(w.x, w.y);
+    var bob = Math.sin(t / 240 + w.x * 3) * ts * 0.02;
+    var bodyH = ts * 0.34, headR = ts * 0.14;
+
+    // sombra
+    ctx.fillStyle = 'rgba(0,0,0,0.25)';
+    ctx.beginPath();
+    ctx.ellipse(p.x, p.y + bodyH * 0.55, ts * 0.16, ts * 0.05, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    var cx = p.x, cy = p.y - bodyH * 0.35 + bob;
+    // piernas
+    ctx.fillStyle = '#37474f';
+    ctx.fillRect(cx - ts * 0.07, cy + bodyH * 0.35, ts * 0.05, bodyH * 0.25);
+    ctx.fillRect(cx + ts * 0.02, cy + bodyH * 0.35, ts * 0.05, bodyH * 0.25);
+    // cuerpo
+    ctx.fillStyle = cd.color;
+    roundRect(cx - ts * 0.11, cy, ts * 0.22, bodyH * 0.55, ts * 0.05);
+    ctx.fill();
+    // brazos
+    var swing = c.task ? 0 : Math.sin(t / 160 + w.x) * ts * 0.05;
+    ctx.fillStyle = cd.color;
+    ctx.fillRect(cx - ts * 0.15, cy + bodyH * 0.1 + swing, ts * 0.04, bodyH * 0.3);
+    ctx.fillRect(cx + ts * 0.11, cy + bodyH * 0.1 - swing, ts * 0.04, bodyH * 0.3);
+    // cabeza
+    ctx.fillStyle = '#ffcc9e';
+    ctx.beginPath(); ctx.arc(cx, cy - headR * 0.7, headR, 0, Math.PI * 2); ctx.fill();
+    // pelo
+    ctx.fillStyle = cd.hair;
+    ctx.beginPath();
+    ctx.arc(cx, cy - headR * 0.85, headR * 0.96, Math.PI, 0);
+    ctx.fill();
+    // ojos
+    ctx.fillStyle = '#263238';
+    ctx.beginPath(); ctx.arc(cx - headR * 0.35, cy - headR * 0.6, headR * 0.09, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(cx + headR * 0.35, cy - headR * 0.6, headR * 0.09, 0, Math.PI * 2); ctx.fill();
+
+    // burbuja de tarea
+    if (c.task) {
+      var done = c.task.done;
+      var remain = Math.max(0, (c.task.endAt - now) / 1000);
+      var prog = 1 - remain / (C.taskDef(c.def, c.task.taskId).sec);
+      var br = ts * 0.24;
+      var bxp = cx, byp = cy - headR * 1.9;
+      ctx.fillStyle = done ? 'rgba(46,64,83,0.95)' : 'rgba(20,26,38,0.92)';
+      ctx.beginPath(); ctx.arc(bxp, byp, br, 0, Math.PI * 2); ctx.fill();
+      // arco de progreso
+      ctx.strokeStyle = done ? '#6ee7a0' : '#ffb84d';
+      ctx.lineWidth = ts * 0.05;
+      ctx.beginPath();
+      ctx.arc(bxp, byp, br - ts * 0.03, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, prog));
+      ctx.stroke();
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold ' + Math.max(9, ts * 0.17) + 'px sans-serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      if (done) {
+        ctx.fillStyle = '#6ee7a0';
+        ctx.fillText('✓', bxp, byp);
+      } else {
+        ctx.fillText(fmtTime(remain), bxp, byp);
+      }
+    }
+  }
+
+  function drawGhost(t, now) {
+    if (!build.def) return;
+    var m = pointer.last; if (!m) return;
+    var w = s2w(m.x, m.y);
+    var gx = Math.floor(w.x), gy = Math.floor(w.y);
+    var def = build.def;
+    var size = C.landTier(S).size;
+    var valid = gx >= 0 && gy >= 0 && gx + def.size <= size && gy + def.size <= size &&
+      C.canPlaceBuilding(S, def.def, gx, gy).ok;
+    var ts = TILE * cam.scale;
+    var occ = C.occupancyMap(S);
+    for (var dx = 0; dx < def.size; dx++)
+      for (var dy = 0; dy < def.size; dy++) {
+        var p = w2s(gx + dx, gy + dy);
+        ctx.fillStyle = valid ? 'rgba(110,231,160,0.45)' : 'rgba(255,107,107,0.4)';
+        ctx.fillRect(p.x, p.y, ts, ts);
+        ctx.strokeStyle = valid ? '#6ee7a0' : '#ff6b6b';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(p.x + 1, p.y + 1, ts - 2, ts - 2);
+      }
+    // silueta del edificio
+    var p0 = w2s(gx, gy);
+    ctx.globalAlpha = 0.55;
+    drawBuilding({ x: gx, y: gy, ready: 0 }, def, t, now);
+    ctx.globalAlpha = 1;
+  }
+
+  /* ------------------------------------------------------------ bucle main */
+  var last = 0;
+  function loop(now) {
+    var dt = Math.min(0.05, (now - last) / 1000); last = now;
+    var t = now;
+
+    updateWander(dt, now);
+
+    // partículas
+    for (var i = particles.length - 1; i >= 0; i--) {
+      var pa = particles[i];
+      pa.age += dt;
+      pa.x += pa.vx * dt; pa.y += pa.vy * dt; pa.vy += 260 * dt;
+      if (pa.age > pa.life) particles.splice(i, 1);
+    }
+    for (var i = floats.length - 1; i >= 0; i--) {
+      var fl = floats[i];
+      fl.age += dt; fl.y -= 26 * dt;
+      if (fl.age > fl.life) floats.splice(i, 1);
+    }
+
+    render(t);
+    requestAnimationFrame(loop);
+  }
+
+  function render(t) {
+    var dpr = window.devicePixelRatio || 1;
+    var w = cv.clientWidth, h = cv.clientHeight;
+    if (cv.width !== w * dpr || cv.height !== h * dpr) {
+      cv.width = w * dpr; cv.height = h * dpr;
+    }
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    // fondo
+    var bg = ctx.createLinearGradient(0, 0, 0, h);
+    bg.addColorStop(0, '#2c3e57');
+    bg.addColorStop(1, '#1a2332');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, w, h);
+
+    var size = C.landTier(S).size;
+    drawTiles(size, t);
+    S.decor.forEach(function (d) { drawDecor(d); });
+    S.buildings.forEach(function (b) {
+      drawBuilding(b, C.buildingDef(b.def), t, Date.now());
+    });
+    S.characters.forEach(function (c) {
+      drawCharacter(C.characterDef(c.def), c, Date.now(), t);
+    });
+
+    drawGhost(t, Date.now());
+
+    // partículas (mundo → pantalla)
+    var ts = TILE * cam.scale;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.font = Math.max(12, ts * 0.3) + 'px sans-serif';
+    particles.forEach(function (pa) {
+      var p = w2s(pa.x, pa.y);
+      ctx.globalAlpha = Math.max(0, 1 - pa.age / pa.life);
+      ctx.fillText(pa.ico, p.x, p.y);
+    });
+    floats.forEach(function (fl) {
+      var p = w2s(fl.x, fl.y);
+      ctx.globalAlpha = Math.max(0, 1 - fl.age / fl.life);
+      ctx.fillStyle = fl.color;
+      ctx.font = 'bold ' + Math.max(12, ts * 0.26) + 'px sans-serif';
+      ctx.fillText(fl.txt, p.x, p.y);
+    });
+    ctx.globalAlpha = 1;
+  }
+
+  function drawDecor(d) {
+    var ts = TILE * cam.scale;
+    var p = w2s(d.x, d.y);
+    var def = C.decorDef(d.def);
+    ctx.fillStyle = 'rgba(0,0,0,0.2)';
+    ctx.beginPath();
+    ctx.ellipse(p.x + ts / 2, p.y + ts * 0.8, ts * 0.2, ts * 0.05, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.font = Math.max(14, ts * 0.5) + 'px sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    var ico = { farol: '🏮', arbusto: '🌳', banco: '🪑', fuente: '⛲', estatua: '🗿' }[d.def] || '🌿';
+    ctx.fillText(ico, p.x + ts / 2, p.y + ts / 2);
+  }
+
+  /* ---------------------------------------------------------------- input */
+  var pointer = { down: false, sx: 0, sy: 0, lx: 0, ly: 0, moved: false, last: null };
+  var build = { def: null };
+
+  cv.addEventListener('pointerdown', function (e) {
+    cv.setPointerCapture(e.pointerId);
+    pointer.down = true; pointer.moved = false;
+    pointer.sx = e.clientX; pointer.sy = e.clientY;
+    pointer.lx = e.clientX; pointer.ly = e.clientY;
+    pointer.last = { x: e.clientX, y: e.clientY };
+  });
+  cv.addEventListener('pointermove', function (e) {
+    pointer.last = { x: e.clientX, y: e.clientY };
+    if (!pointer.down) return;
+    var dx = e.clientX - pointer.lx, dy = e.clientY - pointer.ly;
+    if (Math.abs(e.clientX - pointer.sx) + Math.abs(e.clientY - pointer.sy) > 10) pointer.moved = true;
+    cam.x -= dx / (TILE * cam.scale);
+    cam.y -= dy / (TILE * cam.scale);
+    pointer.lx = e.clientX; pointer.ly = e.clientY;
+  });
+  cv.addEventListener('pointerup', function (e) {
+    pointer.down = false;
+    if (!pointer.moved) handleTap(e.clientX, e.clientY);
+  });
+  cv.addEventListener('pointercancel', function () { pointer.down = false; });
+  cv.addEventListener('wheel', function (e) {
+    e.preventDefault();
+    zoomAt(e.clientX, e.clientY, e.deltaY < 0 ? 1.12 : 0.89);
+  }, { passive: false });
+
+  function zoomAt(sx, sy, f) {
+    var before = s2w(sx, sy);
+    cam.scale = Math.max(0.4, Math.min(1.8, cam.scale * f));
+    var after = s2w(sx, sy);
+    cam.x += before.x - after.x;
+    cam.y += before.y - after.y;
+  }
+  $('zIn').onclick = function () { zoomAt(cv.clientWidth / 2, cv.clientHeight / 2, 1.2); };
+  $('zOut').onclick = function () { zoomAt(cv.clientWidth / 2, cv.clientHeight / 2, 0.83); };
+
+  function handleTap(sx, sy) {
+    var now = Date.now();
+    var w = s2w(sx, sy);
+    var gx = Math.floor(w.x), gy = Math.floor(w.y);
+    var size = C.landTier(S).size;
+
+    if (build.def) {
+      if (gx < 0 || gy < 0 || gx >= size || gy >= size) { sfx.err(); return; }
+      var r = C.placeBuilding(S, build.def.def, gx, gy, now);
+      if (r.ok) {
+        sfx.place();
+        floatText(gx + build.def.size / 2, gy, '¡' + build.def.name + '!', '#6ee7a0');
+        handleEvents(r.events);
+        build.def = null; $('buildBar').classList.remove('open');
+        syncHUD(); openShop();
+      } else {
+        sfx.err(); toast(r.reason, 'bad');
+      }
+      return;
+    }
+
+    // ¿personaje bajo el dedo?
+    var ts = TILE * cam.scale;
+    for (var i = 0; i < S.characters.length; i++) {
+      var c = S.characters[i];
+      if (!c.unlocked) continue;
+      var wp = wander[c.def]; if (!wp) continue;
+      if (Math.hypot(wp.x - w.x, wp.y - w.y) < 0.62) {
+        sfx.tap();
+        openTaskModal(c.def);
+        return;
+      }
+    }
+
+    // ¿edificio?
+    var hit = null;
+    S.buildings.forEach(function (b) {
+      var def = C.buildingDef(b.def);
+      if (gx >= b.x && gx < b.x + def.size && gy >= b.y && gy < b.y + def.size) hit = b;
+    });
+    if (hit) {
+      sfx.tap();
+      openBuildingMenu(hit);
+      return;
+    }
+  }
+
+  /* ------------------------------------------------------------- eventos */
+  function handleEvents(events) {
+    if (!events) return;
+    events.forEach(function (e) {
+      if (e.type === 'quest') {
+        sfx.level();
+        var rw = [];
+        if (e.reward.coins) rw.push(fmt(e.reward.coins) + ' 🪙');
+        if (e.reward.donas) rw.push(e.reward.donas + ' 🍩');
+        if (e.reward.xp) rw.push(e.reward.xp + ' ⭐');
+        toast('📋 ¡Misión completa! ' + e.quest.name + ' · +' + rw.join(' +'), 'good');
+      }
+    });
+  }
+
+  /* ---------------------------------------------------------------- HUD */
+  function syncHUD() {
+    var now = Date.now();
+    $('coinsV').textContent = fmt(S.coins);
+    $('donasV').textContent = fmt(S.donas);
+    $('levelV').textContent = S.level;
+    var need = C.xpForLevel(S.level);
+    $('xpBar').style.width = Math.min(100, (S.xp / need) * 100) + '%';
+
+    // badges
+    var readyTasks = 0;
+    S.characters.forEach(function (c) {
+      if (c.task && c.task.done) readyTasks++;
+    });
+    var readyCoins = 0;
+    S.buildings.forEach(function (b) { if (b.ready > 0) readyCoins++; });
+    var tb = $('taskBadge');
+    if (readyTasks > 0) { tb.style.display = 'flex'; tb.textContent = readyTasks; }
+    else tb.style.display = 'none';
+    var rb = $('readyBadge');
+    if (readyCoins > 0) { rb.style.display = 'flex'; rb.textContent = readyCoins; }
+    else rb.style.display = 'none';
+  }
+
+  /* --------------------------------------------------------------- modales */
+  function openOv(id) { $(id).classList.add('open'); }
+  function closeOv(id) { $(id).classList.remove('open'); }
+  document.querySelectorAll('[data-close]').forEach(function (b) {
+    b.onclick = function () { closeOv(b.dataset.close); sfx.tap(); };
+  });
+  document.querySelectorAll('.overlay').forEach(function (ov) {
+    ov.addEventListener('pointerdown', function (e) { if (e.target === ov) ov.classList.remove('open'); });
+  });
+
+  /* --- tienda --- */
+  var shopTab = 'buildings';
+  document.querySelectorAll('.tab').forEach(function (t) {
+    t.onclick = function () {
+      document.querySelectorAll('.tab').forEach(function (x) { x.classList.remove('on'); });
+      t.classList.add('on');
+      shopTab = t.dataset.shop;
+      renderShop();
+    };
+  });
+
+  function renderShop() {
+    var grid = $('shopGrid');
+    grid.innerHTML = '';
+    var now = Date.now();
+    if (shopTab === 'buildings') {
+      $('shopSub').textContent = 'Toca uno y colócalo en el terreno';
+      C.BUILDINGS.forEach(function (b) {
+        var locked = S.level < b.level;
+        var it = el('div', 'item' + (locked ? ' locked' : ''));
+        var art = { house: '🏠', kiosk: '📰', shop: b.def === 'panaderia' ? '🥐' : b.def === 'cafeteria' ? '☕' : '🌷',
+          garage: '🔧', cinema: '🎬', school: '🏫', hospital: '🏥', office: '🚓',
+          stadium: '🏟️', tower: '🏢' }[b.kind] || '🏗️';
+        it.innerHTML =
+          '<div class="art">' + art + '</div>' +
+          '<div class="nm">' + b.name + '</div>' +
+          '<div class="ds">+' + b.coins + ' 🪙 cada ' + fmtTime(b.interval) +
+          ' · ' + b.size + 'x' + b.size + (locked ? '<br><b style="color:#ff6b6b">Nivel ' + b.level + '</b>' : '') + '</div>' +
+          '<div class="pr">' + (b.cost === 0 ? '<span style="color:#6ee7a0">¡Gratis!</span>' : '<span class="c">🪙 ' + fmt(b.cost) + '</span>') + '</div>';
+        if (!locked) it.onclick = function () {
+          sfx.tap();
+          build.def = b;
+          $('buildName').textContent = b.name;
+          $('buildBar').classList.add('open');
+          closeOv('shopOv');
+        };
+        grid.appendChild(it);
+      });
+    } else if (shopTab === 'characters') {
+      $('shopSub').textContent = 'Desbloquea vecinos con 🍩';
+      C.CHARACTERS.forEach(function (c) {
+        var entry = S.characters.find(function (x) { return x.def === c.def; });
+        var it = el('div', 'item' + (entry.unlocked ? ' owned' : ''));
+        it.innerHTML =
+          '<div class="art" style="font-size:30px">🧑</div>' +
+          '<div class="nm">' + c.name + '</div>' +
+          '<div class="ds">' + (entry.unlocked ? '✅ En tu barrio' : c.tasks.length + ' tareas disponibles') + '</div>' +
+          '<div class="pr">' + (entry.unlocked ? '' : '<span class="d">🍩 ' + c.donas + '</span>') + '</div>';
+        if (!entry.unlocked) it.onclick = function () {
+          var r = C.unlockCharacter(S, c.def, now);
+          if (r.ok) {
+            sfx.level(); toast('🧑 ¡' + c.name + ' se mudó al barrio!', 'good');
+            handleEvents(r.events); syncHUD(); renderShop();
+          } else { sfx.err(); toast(r.reason, 'bad'); }
+        };
+        grid.appendChild(it);
+      });
+    } else {
+      $('shopSub').textContent = 'Adornos para tu barrio';
+      C.DECOR.forEach(function (d) {
+        var locked = S.level < d.level;
+        var it = el('div', 'item' + (locked ? ' locked' : ''));
+        var art = { farol: '🏮', arbusto: '🌳', banco: '🪑', fuente: '⛲', estatua: '🗿' }[d.def];
+        it.innerHTML =
+          '<div class="art">' + art + '</div>' +
+          '<div class="nm">' + d.name + '</div>' +
+          '<div class="ds">Decoración' + (locked ? ' · <b style="color:#ff6b6b">Nivel ' + d.level + '</b>' : '') + '</div>' +
+          '<div class="pr"><span class="c">🪙 ' + fmt(d.cost) + '</span></div>';
+        if (!locked) it.onclick = function () {
+          var r = C.buyDecor(S, d.def, now);
+          if (r.ok) { sfx.place(); toast('🌳 ' + d.name + ' colocado', 'good'); handleEvents(r.events); syncHUD(); }
+          else { sfx.err(); toast(r.reason, 'bad'); }
+        };
+        grid.appendChild(it);
+      });
+    }
+  }
+  function openShop() { renderShop(); openOv('shopOv'); }
+
+  /* --- personajes y tareas --- */
+  function openChars() {
+    var body = $('charBody');
+    body.innerHTML = '';
+    var now = Date.now();
+    C.CHARACTERS.forEach(function (cd) {
+      var c = S.characters.find(function (x) { return x.def === cd.def; });
+      if (!c.unlocked) return;
+      var card = el('div', 'quest');
+      var taskHtml = '<div class="ds" style="color:var(--muted);font-size:12.5px">Libre — tócalo para darle una tarea</div>';
+      if (c.task) {
+        var td = C.taskDef(cd.def, c.task.taskId);
+        if (c.task.done) {
+          taskHtml = '<div class="qobj ok">✅ ' + td.name + ' — ¡recompensa lista! (' + fmt(td.coins) + ' 🪙)</div>';
+        } else {
+          var remain = Math.max(0, (c.task.endAt - now) / 1000);
+          var cost = C.rushCost(S, cd.def, now);
+          taskHtml =
+            '<div class="qobj">⏳ ' + td.name + ' — queda <b>' + fmtTime(remain) + '</b></div>' +
+            '<div style="margin-top:8px;display:flex;gap:8px">' +
+            '<button class="btn dona" data-rush="' + cd.def + '">⚡ Terminar ya · 🍩 ' + cost + '</button></div>';
+        }
+      }
+      card.innerHTML = '<div class="qname">🧑 ' + cd.name + '</div>' + taskHtml;
+      card.style.cursor = 'pointer';
+      card.onclick = function (e) {
+        if (e.target.dataset && e.target.dataset.rush) {
+          var r = C.rushTask(S, e.target.dataset.rush, Date.now());
+          if (r.ok) {
+            sfx.coin(); burstCoin(cam.x, cam.y, 6);
+            floatText(cam.x, cam.y - 0.5, '+' + fmt(r.coins), '#ffd166');
+            handleEvents(r.events); syncHUD(); openChars();
+          } else { sfx.err(); toast(r.reason, 'bad'); }
+          return;
+        }
+        sfx.tap(); openTaskModal(cd.def);
+      };
+      body.appendChild(card);
+    });
+    openOv('charOv');
+  }
+
+  function openTaskModal(def) {
+    var cd = C.characterDef(def);
+    var c = S.characters.find(function (x) { return x.def === def; });
+    $('taskTitle').textContent = '🧑 ' + cd.name;
+    var body = $('taskBody');
+    body.innerHTML = '';
+    var now = Date.now();
+
+    if (c.task) {
+      var td = C.taskDef(def, c.task.taskId);
+      var card = el('div', 'quest');
+      if (c.task.done) {
+        card.innerHTML =
+          '<div class="qname">✅ ' + td.name + ' terminada</div>' +
+          '<div class="qstory">Reclama tu recompensa: <b>' + fmt(td.coins) + ' 🪙</b> y ' + td.xp + ' ⭐</div>' +
+          '<button class="btn big" id="claimBtn">Reclamar recompensa</button>';
+        body.appendChild(card);
+        $('claimBtn').onclick = function () {
+          var r = C.completeTask(S, def, Date.now());
+          if (r.ok) {
+            sfx.coin();
+            var p = wander[def];
+            if (p) { burstCoin(p.x, p.y - 0.3, 10); floatText(p.x, p.y - 0.8, '+' + fmt(r.coins), '#ffd166'); }
+            handleEvents(r.events); syncHUD(); closeOv('taskOv');
+          }
+        };
+      } else {
+        var remain = Math.max(0, (c.task.endAt - now) / 1000);
+        var cost = C.rushCost(S, def, now);
+        card.innerHTML =
+          '<div class="qname">⏳ ' + td.name + '</div>' +
+          '<div class="qstory">Trabajando… queda <b>' + fmtTime(remain) + '</b>. Recompensa: ' + fmt(td.coins) + ' 🪙 + ' + td.xp + ' ⭐</div>' +
+          '<button class="btn dona big" id="rushBtn">⚡ Terminar ya por 🍩 ' + cost + '</button>';
+        body.appendChild(card);
+        $('rushBtn').onclick = function () {
+          var r = C.rushTask(S, def, Date.now());
+          if (r.ok) {
+            sfx.coin();
+            var p = wander[def];
+            if (p) { burstCoin(p.x, p.y - 0.3, 10); floatText(p.x, p.y - 0.8, '+' + fmt(r.coins), '#ffd166'); }
+            handleEvents(r.events); syncHUD(); openTaskModal(def);
+          } else { sfx.err(); toast(r.reason, 'bad'); }
+        };
+      }
+      openOv('taskOv');
+      return;
+    }
+
+    cd.tasks.forEach(function (t) {
+      var card = el('div', 'task');
+      card.innerHTML =
+        '<div class="tart">' + (t.sec >= 3600 ? '🌙' : t.sec >= 900 ? '☀️' : '⚡') + '</div>' +
+        '<div class="tinfo"><div class="tname">' + t.name + '</div>' +
+        '<div class="trew">' + fmtTime(t.sec) + ' · <b>' + fmt(t.coins) + ' 🪙</b> + ' + t.xp + ' ⭐</div></div>' +
+        '<button class="btn">Iniciar</button>';
+      card.querySelector('.btn').onclick = function () {
+        var r = C.startTask(S, def, t.id, Date.now());
+        if (r.ok) { sfx.task(); toast('▶ ' + t.name + ' iniciada', 'good'); closeOv('taskOv'); syncHUD(); }
+        else { sfx.err(); toast(r.reason, 'bad'); }
+      };
+      body.appendChild(card);
+    });
+    openOv('taskOv');
+  }
+
+  /* --- misiones --- */
+  function openQuests() {
+    var body = $('questBody');
+    body.innerHTML = '';
+    var done = 0;
+    C.QUESTS.forEach(function (q, i) {
+      var status = i < S.questIndex ? 'done' : (i === S.questIndex ? 'active' : 'locked');
+      if (status === 'done') done++;
+      var card = el('div', 'quest ' + status);
+      var objsHtml = '';
+      if (status === 'done') {
+        objsHtml = '<div class="qobj ok">✅ Completada</div>';
+      } else if (status === 'active') {
+        var prog = C.questProgress(S);
+        objsHtml = prog.objs.map(function (o) {
+          var label = objLabel(o.obj);
+          return '<div class="qobj ' + (o.done ? 'ok' : '') + '">' + (o.done ? '✅' : '⬜') + ' ' + label + '</div>';
+        }).join('');
+      } else {
+        objsHtml = '<div class="qobj" style="opacity:.5">🔒 Completa la misión anterior</div>';
+      }
+      var rw = [];
+      if (q.reward.coins) rw.push(fmt(q.reward.coins) + ' 🪙');
+      if (q.reward.donas) rw.push(q.reward.donas + ' 🍩');
+      if (q.reward.xp) rw.push(q.reward.xp + ' ⭐');
+      card.innerHTML =
+        '<div class="qname">' + (status === 'active' ? '▶' : status === 'done' ? '✅' : '🔒') + ' ' + q.name + '</div>' +
+        '<div class="qstory">' + q.story + '</div>' + objsHtml +
+        '<div class="qrew">🎁 ' + rw.join(' · ') + '</div>';
+      body.appendChild(card);
+    });
+    $('questSub').textContent = done + ' / ' + C.QUESTS.length + ' completadas';
+    openOv('questOv');
+  }
+  function objLabel(o) {
+    switch (o.type) {
+      case 'build': return 'Construir: ' + C.buildingDef(o.def).name;
+      case 'unlock': return 'Desbloquear: ' + C.characterDef(o.def).name;
+      case 'level': return 'Alcanzar nivel ' + o.level;
+      case 'coinsEarned': return 'Ganar ' + fmt(o.amount) + ' monedas en total';
+      case 'tasksDone': return 'Completar ' + o.amount + ' tareas';
+      case 'buildings': return 'Tener ' + o.amount + ' edificios';
+      case 'decor': return 'Colocar ' + o.amount + ' adornos';
+      default: return o.type;
+    }
+  }
+
+  /* --- menú de edificio --- */
+  function openBuildingMenu(b) {
+    var def = C.buildingDef(b.def);
+    var now = Date.now();
+    C.accrueBuilding(b, now);
+    $('bldTitle').textContent = def.name;
+    var body = $('bldBody');
+    body.innerHTML = '';
+    var card = el('div', 'quest');
+    var readyHtml = b.ready > 0
+      ? '<button class="btn big" id="collectBtn">💰 Recolectar ' + fmt(b.ready) + ' 🪙</button>'
+      : '<div class="qstory">Próxima producción en ' + fmtTime(Math.max(0, (b.lastAt + def.interval * 1000 - now) / 1000)) + '</div>';
+    card.innerHTML =
+      '<div class="qname">' + def.name + '</div>' +
+      '<div class="qstory">Produce ' + def.coins + ' 🪙 cada ' + fmtTime(def.interval) + '</div>' +
+      readyHtml +
+      '<div style="margin-top:10px"><button class="btn sec" id="sellBtn">🏷️ Vender por ' + fmt(Math.floor(def.cost * 0.5)) + ' 🪙</button></div>';
+    body.appendChild(card);
+    if (b.ready > 0) {
+      $('collectBtn').onclick = function () {
+        var r = C.collectBuilding(S, b.id, Date.now());
+        if (r.ok) {
+          sfx.coin();
+          burstCoin(b.x + def.size / 2, b.y + def.size / 2, 10);
+          floatText(b.x + def.size / 2, b.y, '+' + fmt(r.amount), '#ffd166');
+          handleEvents(r.events); syncHUD(); closeOv('bldOv');
+        }
+      };
+    }
+    $('sellBtn').onclick = function () {
+      var r = C.sellBuilding(S, b.id, Date.now());
+      if (r.ok) {
+        sfx.place(); toast('🏷️ Vendido por ' + fmt(r.refund) + ' 🪙', 'good');
+        handleEvents(r.events); syncHUD(); closeOv('bldOv');
+      } else { sfx.err(); toast(r.reason, 'bad'); }
+    };
+    openOv('bldOv');
+  }
+
+  /* --- terreno --- */
+  function openLand() {
+    var next = C.nextLandTier(S);
+    var body = $('landBody');
+    body.innerHTML = '';
+    var card = el('div', 'quest');
+    var cur = C.landTier(S).size;
+    if (next) {
+      card.innerHTML =
+        '<div class="qname">🌱 Terreno actual: ' + cur + 'x' + cur + '</div>' +
+        '<div class="qstory">Expande el pueblo a ' + next.size + 'x' + next.size + ' para construir más.</div>' +
+        '<button class="btn big" id="expandBtn">Expandir a ' + next.size + 'x' + next.size + ' · 🪙 ' + fmt(next.cost) + '</button>';
+      body.appendChild(card);
+      $('expandBtn').onclick = function () {
+        var r = C.expandLand(S, Date.now());
+        if (r.ok) {
+          sfx.level(); toast('🌱 ¡Terreno ampliado a ' + r.size + 'x' + r.size + '!', 'good');
+          fitView(); syncHUD(); closeOv('landOv');
+        } else { sfx.err(); toast(r.reason, 'bad'); }
+      };
+    } else {
+      card.innerHTML =
+        '<div class="qname">🌱 Terreno máximo: ' + cur + 'x' + cur + '</div>' +
+        '<div class="qstory">¡Tu pueblo ya es enorme! Sigue construyendo y completando misiones.</div>';
+      body.appendChild(card);
+    }
+    openOv('landOv');
+  }
+
+  /* ------------------------------------------------------------ botones */
+  $('btnShop').onclick = function () { sfx.tap(); openShop(); };
+  $('btnChars').onclick = function () { sfx.tap(); openChars(); };
+  $('btnQuests').onclick = function () { sfx.tap(); openQuests(); };
+  $('btnLand').onclick = function () { sfx.tap(); openLand(); };
+  $('buildCancel').onclick = function () { build.def = null; $('buildBar').classList.remove('open'); sfx.tap(); };
+  $('btnCollect').onclick = function () {
+    var r = C.collectAll(S, Date.now());
+    if (r.ok) {
+      sfx.coin();
+      S.buildings.forEach(function (b) {
+        if (b.ready === 0) burstCoin(b.x + 0.5, b.y + 0.5, 4);
+      });
+      floatText(cam.x, cam.y - 1, '+' + fmt(r.amount) + ' 🪙', '#ffd166');
+      handleEvents(r.events); syncHUD();
+    } else { sfx.err(); toast('Nada que recolectar todavía', ''); }
+  };
+
+  /* ------------------------------------------------------- tick y guardado */
+  setInterval(function () {
+    if (!S) return; // el juego aún no ha empezado
+    var now = Date.now();
+    C.tick(S, now);
+    syncHUD();
+    // refrescar modal de personaje abierto (timers)
+    if ($('charOv').classList.contains('open')) openChars();
+  }, 1000);
+
+  setInterval(function () {
+    if (!S) return;
+    C.save(S, localStorage);
+  }, 5000);
+  window.addEventListener('beforeunload', function () { if (S) C.save(S, localStorage); });
+  document.addEventListener('visibilitychange', function () {
+    if (document.hidden && S) C.save(S, localStorage);
+  });
+
+  /* ---------------------------------------------------------------- inicio */
+  function start() {
+    var loaded = C.load(null, Date.now(), localStorage);
+    S = loaded.state;
+    ensureWander();
+    fitView();
+    syncHUD();
+    if (loaded.offlineCoins > 0) {
+      setTimeout(function () {
+        toast('🌙 Mientras dormías: <b style="color:#ffd166">+' + fmt(loaded.offlineCoins) + ' 🪙</b> te esperan', 'good');
+      }, 900);
+    }
+    var intro = $('intro');
+    intro.style.opacity = '0';
+    setTimeout(function () { intro.style.display = 'none'; }, 500);
+    requestAnimationFrame(loop);
+  }
+  $('startBtn').onclick = function () { blip(660, 0.1); start(); };
+
+  // API de test (usada por la verificación con Playwright)
+  window.PL = {
+    get state() { return S; },
+    core: C,
+    start: start,
+    grant: function (coins, donas) { S.coins += coins; S.donas += donas; syncHUD(); },
+    place: function (def, x, y) { return C.placeBuilding(S, def, x, y, Date.now()); },
+    tick: function (sec) { return C.tick(S, Date.now() + sec * 1000); },
+    collectAll: function () { return C.collectAll(S, Date.now()); },
+    openShop: openShop, openChars: openChars, openQuests: openQuests
+  };
+})();
+
+</script>
+<script>window.addEventListener('load', function(){ setTimeout(function(){ try { window.PL.start(); } catch(e) {} }, 300); });</script>
+</body>
+</html>
