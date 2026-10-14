@@ -236,6 +236,75 @@
     backdrop-filter: blur(8px);
   }
 
+  /* ---------- Tutorial ---------- */
+  #tutCard {
+    position: fixed; left: 50%; transform: translateX(-50%);
+    bottom: 108px; z-index: 25; width: max-content; max-width: 90vw;
+    background: var(--panel-solid); border: 2px solid var(--accent);
+    border-radius: 18px; padding: 14px 18px;
+    box-shadow: 0 10px 40px rgba(255,184,77,0.25), var(--shadow);
+    text-align: center; font-size: 14px; line-height: 1.45;
+    animation: tutIn .35s cubic-bezier(.2,.9,.3,1.4);
+  }
+  #tutCard .tt { font-size: 11px; font-weight: 800; color: var(--accent); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 4px; }
+  #tutCard .skip { margin-top: 10px; font-size: 12px; color: var(--muted); cursor: pointer; text-decoration: underline; }
+  #tutCard b { color: var(--accent); }
+  @keyframes tutIn { from { transform: translateX(-50%) translateY(24px) scale(.85); opacity: 0; } }
+  #tutArrow {
+    position: fixed; z-index: 25; font-size: 30px; pointer-events: none;
+    filter: drop-shadow(0 4px 8px rgba(0,0,0,0.5));
+    animation: tutBounce 1s ease-in-out infinite;
+    transform: translate(-50%, 0);
+  }
+  #tutArrow.up { transform: translate(-50%, 0) rotate(180deg); }
+  @keyframes tutBounce { 0%,100% { margin-top: 0; } 50% { margin-top: 10px; } }
+
+  /* ---------- Logros ---------- */
+  .ach {
+    display: flex; align-items: center; gap: 12px;
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 14px; padding: 12px; margin-bottom: 10px;
+  }
+  .ach.got { border-color: rgba(255,184,77,0.45); background: linear-gradient(135deg, rgba(255,184,77,0.08), var(--card)); }
+  .ach .aico { font-size: 30px; }
+  .ach .ainfo { flex: 1; }
+  .ach .anm { font-weight: 800; font-size: 14px; }
+  .ach .ads { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .ach .arw { font-size: 12.5px; font-weight: 800; color: var(--dona); }
+  .ach.locked { opacity: 0.45; }
+  .ach.locked .aico { filter: grayscale(1); }
+
+  /* ---------- Diarias ---------- */
+  .daily {
+    display: flex; align-items: center; gap: 12px;
+    background: linear-gradient(135deg, rgba(110,231,160,0.07), var(--card));
+    border: 1px solid rgba(110,231,160,0.25);
+    border-radius: 14px; padding: 12px; margin-bottom: 10px;
+  }
+  .daily .dico { font-size: 28px; }
+  .daily .dinfo { flex: 1; }
+  .daily .dnm { font-weight: 800; font-size: 13.5px; }
+  .daily .dds { font-size: 11.5px; color: var(--muted); margin: 2px 0 6px; }
+  .daily .dbar { height: 7px; border-radius: 99px; background: rgba(255,255,255,0.1); overflow: hidden; }
+  .daily .dbar i { display: block; height: 100%; border-radius: 99px; background: linear-gradient(90deg, #6ee7a0, #ffd166); }
+  .daily.done { border-color: rgba(110,231,160,0.6); }
+  .daily.claimed { opacity: 0.55; }
+  .daily .drew { color: var(--dona); font-weight: 800; font-size: 12.5px; white-space: nowrap; }
+  .dailySecTitle { font-size: 12px; font-weight: 800; color: var(--good); letter-spacing: .8px; text-transform: uppercase; margin: 2px 0 10px; }
+
+  /* ---------- Modo foto ---------- */
+  body.photo #hud, body.photo #dock, body.photo #zoomCtl { display: none; }
+  #photoBtn {
+    position: fixed; top: 10px; left: 50%; transform: translateX(-50%);
+    z-index: 26; border-radius: 99px; padding: 8px 16px;
+    background: var(--panel); border: 1px solid var(--border);
+    color: var(--text); font-weight: 700; font-size: 13px; cursor: pointer;
+    box-shadow: var(--shadow); backdrop-filter: blur(8px);
+    transition: transform .15s;
+  }
+  #photoBtn:active { transform: translateX(-50%) scale(0.94); }
+  body.photo #photoBtn { background: var(--accent); color: #1a1405; }
+
   /* intro */
   #intro {
     position: fixed; inset: 0; z-index: 40;
@@ -273,7 +342,10 @@
   <div id="zoomCtl">
     <button class="zbtn" id="zIn">＋</button>
     <button class="zbtn" id="zOut">－</button>
+    <button class="zbtn" id="musicBtn" title="Música">🔇</button>
   </div>
+
+  <button id="photoBtn">📷 Modo foto</button>
 
   <div id="buildBar">
     <span id="buildName">Edificio</span>
@@ -286,8 +358,16 @@
     <button class="dbtn" id="btnChars"><span class="ico">🧑‍🤝‍🧑</span>Amigos<span class="badge" id="taskBadge" style="display:none">0</span></button>
     <button class="dbtn" id="btnCollect"><span class="ico">💰</span>Recolectar<span class="badge" id="readyBadge" style="display:none">0</span></button>
     <button class="dbtn" id="btnQuests"><span class="ico">📋</span>Misiones</button>
+    <button class="dbtn" id="btnAch"><span class="ico">🏆</span>Logros</button>
     <button class="dbtn" id="btnLand"><span class="ico">🌱</span>Terreno</button>
   </div>
+
+  <div id="tutCard" style="display:none">
+    <div class="tt">Tutorial</div>
+    <div id="tutText"></div>
+    <div class="skip" id="tutSkip">Saltar tutorial</div>
+  </div>
+  <div id="tutArrow" style="display:none">👇</div>
 
   <!-- Tienda -->
   <div class="overlay" id="shopOv">
@@ -338,6 +418,18 @@
         <button class="xbtn" data-close="questOv">✕</button>
       </div>
       <div class="sheet-body" id="questBody"></div>
+    </div>
+  </div>
+
+  <!-- Logros -->
+  <div class="overlay" id="achOv">
+    <div class="sheet">
+      <div class="sheet-head">
+        <h2>🏆 Logros</h2>
+        <span class="sub" id="achSub"></span>
+        <button class="xbtn" data-close="achOv">✕</button>
+      </div>
+      <div class="sheet-body" id="achBody"></div>
     </div>
   </div>
 

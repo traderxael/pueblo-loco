@@ -53,6 +53,13 @@ const hud = await page.evaluate(() => ({
 ok(hud.level === '1', 'HUD muestra nivel 1');
 ok(hud.coins !== '0', 'HUD muestra monedas (' + hud.coins + ')');
 
+console.log('== Tutorial ==');
+ok(await page.evaluate(() => window.PL.state.tutorial) === 0, 'tutorial activo al empezar (paso 0)');
+ok(await page.locator('#tutCard').isVisible(), 'tarjeta de tutorial visible');
+ok(await page.locator('#tutArrow').isVisible(), 'flecha del tutorial visible');
+await page.click('#tutSkip');
+ok(await page.evaluate(() => window.PL.state.tutorial) === -1, 'tutorial se puede saltar');
+
 console.log('== Jugabilidad (vía API de test) ==');
 // Construir casa (misión q1)
 const r1 = await page.evaluate(() => window.PL.place('casa', 0, 0));
@@ -125,6 +132,57 @@ ok(await page.locator('#landOv.open').count() === 1, 'modal de terreno se abre')
 const landText = await page.locator('#landBody').textContent();
 ok(landText.includes('6x6'), 'terreno actual 6x6 mostrado');
 await page.click('#landOv .xbtn');
+
+console.log('== UI: logros, diarias, música, foto ==');
+// Logros
+await page.click('#btnAch');
+await page.waitForTimeout(300);
+ok(await page.locator('#achOv.open').count() === 1, 'panel de logros se abre');
+const achCards = await page.locator('#achBody .ach').count();
+ok(achCards === 12, '12 logros listados (' + achCards + ')');
+const achSub = await page.locator('#achSub').textContent();
+ok(/^\d+ \/ 12 desbloqueados$/.test(achSub), 'contador de logros correcto: ' + achSub);
+ok(await page.locator('#achBody .ach.got').count() >= 1, 'al menos un logro desbloqueado (primer edificio)');
+await page.click('#achOv .xbtn');
+
+// Misiones diarias en el modal de misiones
+await page.click('#btnQuests');
+await page.waitForTimeout(300);
+const dailyCards = await page.locator('#questBody .daily').count();
+ok(dailyCards === 3, '3 misiones diarias mostradas (' + dailyCards + ')');
+const dailyClaimable = await page.evaluate(() => {
+  const d = window.PL.dailyProgress();
+  // forzar la primera para poder reclamarla
+  const first = d[0];
+  window.PL.state.daily.stats[first.def.stat] = first.def.goal;
+  return first.def.id;
+});
+await page.evaluate(() => window.PL.openQuests()); // refrescar modal vía API
+await page.waitForTimeout(200);
+const claimBtn = page.locator('#questBody .daily [data-daily="' + dailyClaimable + '"]');
+ok(await claimBtn.count() === 1, 'botón de reclamar aparece al completar la diaria');
+await claimBtn.click();
+await page.waitForTimeout(300);
+ok(await page.evaluate(id => window.PL.state.daily.claimed[id] === true, dailyClaimable), 'diaria reclamada queda marcada');
+await page.click('#questOv .xbtn');
+
+// Música: encendida por defecto, toggle persistente
+ok(await page.evaluate(() => window.PL.musicOn()) === true, 'música encendida por defecto');
+await page.click('#musicBtn');
+await page.waitForTimeout(200);
+ok(await page.evaluate(() => window.PL.musicOn()) === false, 'música se apaga con el botón');
+ok(await page.evaluate(() => localStorage.getItem('puebloloco.music')) === '0', 'preferencia de música persistida');
+await page.click('#musicBtn'); // dejar encendida
+
+// Modo foto
+await page.click('#photoBtn');
+ok(await page.evaluate(() => window.PL.photoOn()) === true, 'modo foto activo');
+ok(!(await page.locator('#hud').isVisible()), 'HUD oculto en modo foto');
+ok(!(await page.locator('#dock').isVisible()), 'dock oculto en modo foto');
+await page.screenshot({ path: SHOT + '/04-modo-foto.png' });
+await page.click('#photoBtn');
+ok(await page.evaluate(() => window.PL.photoOn()) === false, 'modo foto se desactiva');
+ok(await page.locator('#hud').isVisible(), 'HUD vuelve al salir del modo foto');
 
 console.log('== Errores de consola ==');
 ok(errors.length === 0, 'sin errores JS' + (errors.length ? ': ' + errors.join(' | ') : ''));

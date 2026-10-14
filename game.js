@@ -53,8 +53,67 @@
     place: function () { blip(300, 0.12, 'square', 0.05); setTimeout(function(){ blip(600, 0.14, 'square', 0.05); }, 70); },
     level: function () { blip(523, 0.12, 'sine', 0.08); setTimeout(function(){ blip(659, 0.12, 'sine', 0.08); }, 100); setTimeout(function(){ blip(784, 0.2, 'sine', 0.08); }, 200); },
     task: function () { blip(440, 0.1, 'triangle', 0.06); },
+    ach: function () { blip(659, 0.1, 'sine', 0.07); setTimeout(function(){ blip(880, 0.1, 'sine', 0.07); }, 90); setTimeout(function(){ blip(1047, 0.22, 'sine', 0.07); }, 180); },
     err: function () { blip(180, 0.18, 'sawtooth', 0.05); }
   };
+
+  /* ------------------------------------------------- música generativa */
+  var MUSIC = {
+    on: false, timer: null, step: 0, nextT: 0,
+    // grados de la escala (semitono relativo a C4), null = silencio
+    bass: [0, 0, 7, 7, 5, 5, 3, 4],
+    mel: [12, 16, 19, 16, 17, 19, 21, 19, 12, 16, 19, 24, 21, 19, 16, 14]
+  };
+  function ensureAC() {
+    if (AC) return true;
+    try {
+      AC = new (window.AudioContext || window.webkitAudioContext)();
+      return true;
+    } catch (e) { return false; }
+  }
+  function mnote(freq, dur, type, vol, at) {
+    var o = AC.createOscillator(), g = AC.createGain();
+    o.type = type; o.frequency.value = freq;
+    g.gain.setValueAtTime(vol, at);
+    g.gain.exponentialRampToValueAtTime(0.001, at + dur);
+    o.connect(g); g.connect(AC.destination);
+    o.start(at); o.stop(at + dur + 0.05);
+  }
+  function mSchedule() {
+    if (!MUSIC.on || !AC) return;
+    try {
+      if (AC.state === 'suspended') AC.resume();
+      while (MUSIC.nextT < AC.currentTime + 0.3) {
+        var i = MUSIC.step % 16;
+        if (i % 2 === 0) {
+          var b = MUSIC.bass[Math.floor(MUSIC.step / 2) % 8];
+          mnote(261.63 * Math.pow(2, (b - 12) / 12), 0.24, 'sine', 0.05, MUSIC.nextT);
+        }
+        var m = MUSIC.mel[i];
+        if (m != null) mnote(261.63 * Math.pow(2, m / 12), 0.22, 'triangle', 0.028, MUSIC.nextT);
+        if (i % 4 === 2) mnote(1900, 0.03, 'square', 0.007, MUSIC.nextT);
+        MUSIC.nextT += 0.25;
+        MUSIC.step++;
+      }
+    } catch (e) { /* sin audio, sin problema */ }
+  }
+  function startMusic() {
+    if (MUSIC.on) return;
+    if (!ensureAC()) return;
+    MUSIC.on = true;
+    MUSIC.step = 0;
+    MUSIC.nextT = AC.currentTime + 0.15;
+    MUSIC.timer = setInterval(mSchedule, 90);
+    $('musicBtn').textContent = '🔊';
+    localStorage.setItem('puebloloco.music', '1');
+  }
+  function stopMusic() {
+    MUSIC.on = false;
+    clearInterval(MUSIC.timer);
+    $('musicBtn').textContent = '🔇';
+    localStorage.setItem('puebloloco.music', '0');
+  }
+  $('musicBtn').onclick = function () { MUSIC.on ? stopMusic() : startMusic(); };
 
   /* --------------------------------------------------------------- toasts */
   function toast(msg, kind) {
@@ -666,8 +725,56 @@
         if (e.reward.xp) rw.push(e.reward.xp + ' ⭐');
         toast('📋 ¡Misión completa! ' + e.quest.name + ' · +' + rw.join(' +'), 'good');
       }
+      if (e.type === 'achievement') {
+        sfx.ach();
+        toast('🏆 ¡Logro desbloqueado! ' + e.ach.name + (e.ach.donas ? ' · +' + e.ach.donas + ' 🍩' : ''), 'good');
+      }
     });
   }
+
+  /* ------------------------------------------------------------- tutorial */
+  var tutFlags = {};
+  var TUT_STEPS = [
+    { t: '🏗️ Toca <b>Construir</b> y elige la <b>Casa</b>', sel: '#btnShop', check: function () { return tutFlags.shop; } },
+    { t: '📦 Toca la <b>Casa</b> y colócala en una zona verde del terreno', sel: '#btnShop', check: function () { return S.buildings.length >= 2; } },
+    { t: '💰 Toca <b>Recolectar</b> para cobrar tus primeras monedas', sel: '#btnCollect', check: function () { return tutFlags.collect; } },
+    { t: '🧑 Abre <b>Amigos</b> y dale una tarea a un vecino', sel: '#btnChars', check: function () { return tutFlags.task; } },
+    { t: '📋 Abre <b>Misiones</b> y cumple los objetivos del barrio', sel: '#btnQuests', check: function () { return tutFlags.quests; } }
+  ];
+  function endTutorial(skipped) {
+    if (S) S.tutorial = -1;
+    $('tutCard').style.display = 'none';
+    $('tutArrow').style.display = 'none';
+    if (!skipped) toast('🎓 ¡Tutorial completo! Ya eres alcalde de Pueblo Loco', 'good');
+  }
+  function updateTutorial() {
+    if (!S || S.tutorial < 0) return;
+    var step = TUT_STEPS[S.tutorial];
+    if (!step) { endTutorial(); return; }
+    if (step.check()) {
+      S.tutorial++;
+      step = TUT_STEPS[S.tutorial];
+      if (!step) { endTutorial(); return; }
+      tutFlags = {}; // los flags solo valen para el paso actual
+    }
+    $('tutText').innerHTML = step.t;
+    $('tutCard').style.display = 'block';
+    // flecha apuntando al botón objetivo
+    var targetSel = step.sel === '#btnShop' && $('buildBar').classList.contains('open') ? '#buildBar' : step.sel;
+    var target = $(targetSel.slice(1));
+    var arrow = $('tutArrow');
+    if (target && target.offsetParent !== null) {
+      var r = target.getBoundingClientRect();
+      arrow.style.display = 'block';
+      arrow.style.left = (r.left + r.width / 2) + 'px';
+      arrow.style.top = (r.bottom + 6) + 'px';
+      arrow.className = '';
+    } else {
+      arrow.style.display = 'none';
+    }
+  }
+  $('tutSkip').onclick = function () { sfx.tap(); endTutorial(true); };
+  setInterval(updateTutorial, 250);
 
   /* ---------------------------------------------------------------- HUD */
   function syncHUD() {
@@ -780,7 +887,10 @@
       });
     }
   }
-  function openShop() { renderShop(); openOv('shopOv'); }
+  function openShop() {
+    tutFlags.shop = true;
+    renderShop(); openOv('shopOv');
+  }
 
   /* --- personajes y tareas --- */
   function openChars() {
@@ -881,7 +991,7 @@
         '<button class="btn">Iniciar</button>';
       card.querySelector('.btn').onclick = function () {
         var r = C.startTask(S, def, t.id, Date.now());
-        if (r.ok) { sfx.task(); toast('▶ ' + t.name + ' iniciada', 'good'); closeOv('taskOv'); syncHUD(); }
+        if (r.ok) { sfx.task(); tutFlags.task = true; toast('▶ ' + t.name + ' iniciada', 'good'); closeOv('taskOv'); syncHUD(); }
         else { sfx.err(); toast(r.reason, 'bad'); }
       };
       body.appendChild(card);
@@ -891,8 +1001,45 @@
 
   /* --- misiones --- */
   function openQuests() {
+    tutFlags.quests = true;
     var body = $('questBody');
     body.innerHTML = '';
+
+    // --- misiones diarias (rotan cada día) ---
+    var title = el('div', 'dailySecTitle', '☀️ Misiones de hoy — rotan a medianoche');
+    body.appendChild(title);
+    var dprog = C.dailyProgress(S, Date.now());
+    dprog.forEach(function (d) {
+      var pct = Math.min(100, (d.progress / d.goal) * 100);
+      var card = el('div', 'daily' + (d.claimed ? ' claimed' : d.done ? ' done' : ''));
+      var right = '';
+      if (d.claimed) {
+        right = '<span class="drew">✅ Reclamada</span>';
+      } else if (d.done) {
+        right = '<button class="btn dona" data-daily="' + d.def.id + '">Reclamar 🍩 ' + d.def.donas + '</button>';
+      } else {
+        right = '<span class="drew">🍩 ' + d.def.donas + '</span>';
+      }
+      card.innerHTML =
+        '<div class="dico">☀️</div>' +
+        '<div class="dinfo"><div class="dnm">' + d.def.name + '</div>' +
+        '<div class="dds">' + d.def.desc + ' — ' + fmt(d.progress) + ' / ' + fmt(d.goal) + '</div>' +
+        '<div class="dbar"><i style="width:' + pct + '%"></i></div></div>' + right;
+      var btn = card.querySelector('[data-daily]');
+      if (btn) btn.onclick = function () {
+        var r = C.claimDaily(S, d.def.id, Date.now());
+        if (r.ok) {
+          sfx.coin(); toast('☀️ ¡Misión diaria reclamada! +' + r.donas + ' 🍩', 'good');
+          handleEvents(r.events); syncHUD(); openQuests();
+        } else { sfx.err(); toast(r.reason, 'bad'); }
+      };
+      body.appendChild(card);
+    });
+
+    var sep = el('div', 'dailySecTitle', '📜 Historia del barrio');
+    sep.style.color = 'var(--muted)';
+    body.appendChild(sep);
+
     var done = 0;
     C.QUESTS.forEach(function (q, i) {
       var status = i < S.questIndex ? 'done' : (i === S.questIndex ? 'active' : 'locked');
@@ -975,6 +1122,34 @@
     openOv('bldOv');
   }
 
+  /* --- logros --- */
+  var ACH_ICONS = {
+    'first-build': '🧱', 'ten-tasks': '🛠️', 'hundred-tasks': '🏗️',
+    'level-5': '🌱', 'level-10': '🌳', 'level-15': '👑',
+    'rich': '💰', 'dona-hoarder': '🍩', 'expander': '🗺️',
+    'decorator': '🌷', 'metropolis': '🏙️', 'all-quests': '🎖️'
+  };
+  function openAchievements() {
+    var body = $('achBody');
+    body.innerHTML = '';
+    var got = 0;
+    C.ACHIEVEMENTS.forEach(function (a) {
+      var unlocked = !!S.achievements[a.id];
+      if (unlocked) got++;
+      var card = el('div', 'ach ' + (unlocked ? 'got' : 'locked'));
+      card.innerHTML =
+        '<div class="aico">' + (ACH_ICONS[a.id] || '🏆') + '</div>' +
+        '<div class="ainfo"><div class="anm">' + a.name + '</div>' +
+        '<div class="ads">' + a.desc + '</div></div>' +
+        (unlocked
+          ? '<div class="arw">' + (a.donas ? '+' + a.donas + ' 🍩' : '✅') + '</div>'
+          : '<div class="arw" style="color:var(--muted)">' + (a.donas ? '🍩 ' + a.donas : '🔒') + '</div>');
+      body.appendChild(card);
+    });
+    $('achSub').textContent = got + ' / ' + C.ACHIEVEMENTS.length + ' desbloqueados';
+    openOv('achOv');
+  }
+
   /* --- terreno --- */
   function openLand() {
     var next = C.nextLandTier(S);
@@ -1008,11 +1183,19 @@
   $('btnShop').onclick = function () { sfx.tap(); openShop(); };
   $('btnChars').onclick = function () { sfx.tap(); openChars(); };
   $('btnQuests').onclick = function () { sfx.tap(); openQuests(); };
+  $('btnAch').onclick = function () { sfx.tap(); openAchievements(); };
   $('btnLand').onclick = function () { sfx.tap(); openLand(); };
   $('buildCancel').onclick = function () { build.def = null; $('buildBar').classList.remove('open'); sfx.tap(); };
+  $('photoBtn').onclick = function () {
+    document.body.classList.toggle('photo');
+    var on = document.body.classList.contains('photo');
+    $('photoBtn').textContent = on ? '📷 Salir del modo foto' : '📷 Modo foto';
+    sfx.tap();
+  };
   $('btnCollect').onclick = function () {
     var r = C.collectAll(S, Date.now());
     if (r.ok) {
+      tutFlags.collect = true;
       sfx.coin();
       S.buildings.forEach(function (b) {
         if (b.ready === 0) burstCoin(b.x + 0.5, b.y + 0.5, 4);
@@ -1056,6 +1239,8 @@
     var intro = $('intro');
     intro.style.opacity = '0';
     setTimeout(function () { intro.style.display = 'none'; }, 500);
+    // música: recordar preferencia (por defecto encendida tras el primer "Empezar")
+    if (localStorage.getItem('puebloloco.music') !== '0') startMusic();
     requestAnimationFrame(loop);
   }
   $('startBtn').onclick = function () { blip(660, 0.1); start(); };
@@ -1069,6 +1254,15 @@
     place: function (def, x, y) { return C.placeBuilding(S, def, x, y, Date.now()); },
     tick: function (sec) { return C.tick(S, Date.now() + sec * 1000); },
     collectAll: function () { return C.collectAll(S, Date.now()); },
-    openShop: openShop, openChars: openChars, openQuests: openQuests
+    openShop: openShop, openChars: openChars, openQuests: openQuests,
+    openAchievements: openAchievements,
+    tutorialStep: function () { return S ? S.tutorial : null; },
+    skipTutorial: function () { endTutorial(true); },
+    dailyProgress: function () { return C.dailyProgress(S, Date.now()); },
+    claimDaily: function (id) { return C.claimDaily(S, id, Date.now()); },
+    musicOn: function () { return MUSIC.on; },
+    toggleMusic: function () { MUSIC.on ? stopMusic() : startMusic(); },
+    photoOn: function () { return document.body.classList.contains('photo'); },
+    togglePhoto: function () { $('photoBtn').onclick(); }
   };
 })();

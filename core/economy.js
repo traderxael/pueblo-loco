@@ -104,6 +104,101 @@
     { id: 'q12', name: 'Pueblo Loco legendario',      story: 'Alcanza el nivel 15 para consagrar tu barrio.',         objs: [{ type: 'level', level: 15 }],                                   reward: { donas: 500, xp: 1500 } }
   ];
 
+  // Logros: se evalúan contra el estado en cada acción. Recompensan donas.
+  var ACHIEVEMENTS = [
+    { id: 'first-build',  name: 'Primer ladrillo',      desc: 'Construye tu primer edificio',        donas: 5,   check: function (s) { return s.buildings.length >= 2; } },
+    { id: 'ten-tasks',    name: 'Manos a la obra',      desc: 'Completa 10 tareas',                  donas: 10,  check: function (s) { return s.stats.tasksDone >= 10; } },
+    { id: 'hundred-tasks',name: 'Vecindario trabajador',desc: 'Completa 100 tareas',                 donas: 50,  check: function (s) { return s.stats.tasksDone >= 100; } },
+    { id: 'level-5',      name: 'Barrio creciente',     desc: 'Alcanza el nivel 5',                  donas: 10,  check: function (s) { return s.level >= 5; } },
+    { id: 'level-10',     name: 'Orgullo del pueblo',   desc: 'Alcanza el nivel 10',                 donas: 25,  check: function (s) { return s.level >= 10; } },
+    { id: 'level-15',     name: 'Leyenda local',        desc: 'Alcanza el nivel 15',                 donas: 60,  check: function (s) { return s.level >= 15; } },
+    { id: 'rich',         name: 'Caja fuerte',          desc: 'Ten 100.000 monedas a la vez',        donas: 20,  check: function (s) { return s.coins >= 100000; } },
+    { id: 'dona-hoarder', name: 'Coleccionista de donas', desc: 'Acumula 200 donas',                 donas: 0,   check: function (s) { return s.donas >= 200; } },
+    { id: 'expander',     name: 'Visionario',           desc: 'Expande el terreno a 10x10',          donas: 15,  check: function (s) { return s.landTier >= 2; } },
+    { id: 'decorator',    name: 'Paisajista',           desc: 'Coloca 6 adornos',                    donas: 20,  check: function (s) { return s.decor.length >= 6; } },
+    { id: 'metropolis',   name: 'Metrópolis',           desc: 'Ten 20 edificios en pie',             donas: 40,  check: function (s) { return s.buildings.length >= 20; } },
+    { id: 'all-quests',   name: 'Alcalde honorario',    desc: 'Completa las 12 misiones',            donas: 100, check: function (s) { return s.questIndex >= QUESTS.length; } }
+  ];
+
+  // Misiones diarias: cada día se eligen 3 del grupo según la fecha.
+  var DAILY_POOL = [
+    { id: 'd-tasks',  name: 'Jornada completa',  desc: 'Completa 3 tareas hoy',      goal: 3,   stat: 'tasksDone',      donas: 10 },
+    { id: 'd-coins',  name: 'Buen comercio',     desc: 'Recolecta 500 monedas hoy',  goal: 500, stat: 'coinsEarned',    donas: 8  },
+    { id: 'd-build',  name: 'Albañil del día',   desc: 'Construye 2 edificios hoy',  goal: 2,   stat: 'buildingsBuilt', donas: 10 },
+    { id: 'd-level',  name: 'Día de aprendizaje',desc: 'Sube 1 nivel hoy',           goal: 1,   stat: 'levelsGained',   donas: 12 },
+    { id: 'd-big',    name: 'Gran recolección',  desc: 'Recolecta 2.000 monedas hoy',goal: 2000,stat: 'coinsEarned',    donas: 15 },
+    { id: 'd-marathon',name: 'Maratón vecinal',  desc: 'Completa 8 tareas hoy',      goal: 8,   stat: 'tasksDone',      donas: 20 }
+  ];
+
+  function todayKey(now) {
+    var d = new Date(now);
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+
+  function hashStr(s) {
+    var h = 0;
+    for (var i = 0; i < s.length; i++) { h = (h * 31 + s.charCodeAt(i)) | 0; }
+    return Math.abs(h);
+  }
+
+  // Elige 3 misiones diarias deterministas para la fecha dada.
+  function pickDaily(dateKey) {
+    var pool = DAILY_POOL.slice();
+    var picks = [];
+    var h = hashStr(dateKey);
+    for (var i = 0; i < 3 && pool.length; i++) {
+      picks.push(pool.splice(h % pool.length, 1)[0]);
+      h = Math.floor(h / pool.length || 1) + 7;
+    }
+    return picks;
+  }
+
+  function initDaily(state, now) {
+    var key = todayKey(now);
+    state.daily = {
+      date: key,
+      picked: pickDaily(key).map(function (d) { return d.id; }),
+      stats: { tasksDone: 0, coinsEarned: 0, buildingsBuilt: 0, levelsGained: 0 },
+      claimed: {}
+    };
+  }
+
+  // Rota las misiones diarias si cambió el día.
+  function updateDaily(state, now) {
+    var key = todayKey(now);
+    if (!state.daily || state.daily.date !== key) initDaily(state, now);
+  }
+
+  function bumpDaily(state, field, n) {
+    if (!state.daily || !state.daily.stats) return;
+    state.daily.stats[field] = (state.daily.stats[field] || 0) + (n || 1);
+  }
+
+  function dailyProgress(state, now) {
+    updateDaily(state, now || Date.now());
+    return state.daily.picked.map(function (id) {
+      var d = DAILY_POOL.find(function (x) { return x.id === id; });
+      var cur = Math.min(d.goal, state.daily.stats[d.stat] || 0);
+      return {
+        def: d, progress: cur, goal: d.goal,
+        done: cur >= d.goal,
+        claimed: !!state.daily.claimed[id]
+      };
+    });
+  }
+
+  function claimDaily(state, id, now) {
+    updateDaily(state, now);
+    if (state.daily.claimed[id]) return { ok: false, reason: 'Ya reclamada' };
+    var d = DAILY_POOL.find(function (x) { return x.id === id; });
+    if (!d || state.daily.picked.indexOf(id) < 0) return { ok: false, reason: 'No es una misión de hoy' };
+    if ((state.daily.stats[d.stat] || 0) < d.goal) return { ok: false, reason: 'Aún no completada' };
+    state.daily.claimed[id] = true;
+    state.donas += d.donas;
+    var events = evaluateQuests(state, now);
+    return { ok: true, donas: d.donas, events: events };
+  }
+
   /* ------------------------------------------------------------- progresión */
 
   function xpForLevel(level) {
@@ -140,7 +235,9 @@
         return { def: c.def, unlocked: c.donas === 0, task: null };
       }),
       questIndex: 0,
+      tutorial: 0, // paso del tutorial (0 = activo, -1 = terminado/saltado)
       stats: { coinsEarned: 0, tasksDone: 0, buildingsBuilt: 0 },
+      achievements: {},
       lastSeen: Date.now()
     };
   }
@@ -211,6 +308,7 @@
       state.level++;
       gained++;
     }
+    if (gained > 0) bumpDaily(state, 'levelsGained', gained);
     return gained;
   }
 
@@ -221,6 +319,7 @@
     state.coins -= d.cost;
     state.buildings.push({ id: nextId(), def: defId, x: x, y: y, lastAt: now, ready: 0 });
     state.stats.buildingsBuilt++;
+    bumpDaily(state, 'buildingsBuilt', 1);
     addXp(state, d.xp);
     var events = evaluateQuests(state, now);
     return { ok: true, events: events };
@@ -306,6 +405,7 @@
     var amount = b.ready;
     state.coins += amount;
     state.stats.coinsEarned += amount;
+    bumpDaily(state, 'coinsEarned', amount);
     b.ready = 0;
     b.lastAt = now;
     var events = evaluateQuests(state, now);
@@ -323,6 +423,7 @@
     if (total <= 0) return { ok: false, reason: 'Nada que recolectar' };
     state.coins += total;
     state.stats.coinsEarned += total;
+    bumpDaily(state, 'coinsEarned', total);
     var events = evaluateQuests(state, now);
     return { ok: true, amount: total, events: events };
   }
@@ -346,6 +447,8 @@
     state.coins += t.coins;
     state.stats.coinsEarned += t.coins;
     state.stats.tasksDone++;
+    bumpDaily(state, 'tasksDone', 1);
+    bumpDaily(state, 'coinsEarned', t.coins);
     var gained = addXp(state, t.xp);
     entry.task = null;
     var events = evaluateQuests(state, now);
@@ -373,6 +476,7 @@
 
   // Avanza producción y tareas. Devuelve resumen de lo que cambió.
   function tick(state, now) {
+    updateDaily(state, now);
     var out = { coinsAccrued: 0, tasksReady: 0, levels: 0 };
     state.buildings.forEach(function (b) {
       var before = b.ready;
@@ -414,6 +518,8 @@
     if (!state || state.v !== VERSION) state = createState();
     var elapsed = Math.max(0, Math.min(now - (state.lastSeen || now), 7 * 24 * 3600 * 1000));
     state.lastSeen = now;
+    updateDaily(state, now);
+    if (state.tutorial == null) state.tutorial = 0;
     // Progreso offline: recolectar todo lo listo para que el jugador lo reclame.
     var offlineCoins = 0;
     state.buildings.forEach(function (b) {
@@ -461,7 +567,7 @@
     };
   }
 
-  // Evalúa y completa misiones encadenadas. Devuelve eventos para la UI.
+  // Evalúa y completa misiones encadenadas + logros. Devuelve eventos para la UI.
   function evaluateQuests(state, now) {
     var events = [];
     var guard = 0;
@@ -476,6 +582,16 @@
       state.questIndex++;
       events.push({ type: 'quest', quest: q, reward: r });
     }
+    // Logros: primera vez que se cumple la condición
+    if (!state.achievements) state.achievements = {};
+    ACHIEVEMENTS.forEach(function (a) {
+      if (state.achievements[a.id]) return;
+      if (a.check(state)) {
+        state.achievements[a.id] = true;
+        if (a.donas) state.donas += a.donas;
+        events.push({ type: 'achievement', ach: a });
+      }
+    });
     return events;
   }
 
@@ -492,6 +608,7 @@
     VERSION: VERSION, SAVE_KEY: SAVE_KEY, OFFLINE_CAP_MS: OFFLINE_CAP_MS,
     BUILDINGS: BUILDINGS, CHARACTERS: CHARACTERS, DECOR: DECOR,
     QUESTS: QUESTS, LAND_TIERS: LAND_TIERS,
+    ACHIEVEMENTS: ACHIEVEMENTS, DAILY_POOL: DAILY_POOL,
     xpForLevel: xpForLevel,
     buildingDef: buildingDef, characterDef: characterDef, decorDef: decorDef,
     taskDef: taskDef, landTier: landTier, nextLandTier: nextLandTier,
@@ -505,6 +622,8 @@
     tick: tick, loadState: loadState,
     activeQuest: activeQuest, questProgress: questProgress, objectiveDone: objectiveDone,
     evaluateQuests: evaluateQuests,
+    todayKey: todayKey, pickDaily: pickDaily, updateDaily: updateDaily,
+    dailyProgress: dailyProgress, claimDaily: claimDaily,
     save: save, load: load
   };
 });

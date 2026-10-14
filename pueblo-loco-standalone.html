@@ -236,6 +236,75 @@
     backdrop-filter: blur(8px);
   }
 
+  /* ---------- Tutorial ---------- */
+  #tutCard {
+    position: fixed; left: 50%; transform: translateX(-50%);
+    bottom: 108px; z-index: 25; width: max-content; max-width: 90vw;
+    background: var(--panel-solid); border: 2px solid var(--accent);
+    border-radius: 18px; padding: 14px 18px;
+    box-shadow: 0 10px 40px rgba(255,184,77,0.25), var(--shadow);
+    text-align: center; font-size: 14px; line-height: 1.45;
+    animation: tutIn .35s cubic-bezier(.2,.9,.3,1.4);
+  }
+  #tutCard .tt { font-size: 11px; font-weight: 800; color: var(--accent); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 4px; }
+  #tutCard .skip { margin-top: 10px; font-size: 12px; color: var(--muted); cursor: pointer; text-decoration: underline; }
+  #tutCard b { color: var(--accent); }
+  @keyframes tutIn { from { transform: translateX(-50%) translateY(24px) scale(.85); opacity: 0; } }
+  #tutArrow {
+    position: fixed; z-index: 25; font-size: 30px; pointer-events: none;
+    filter: drop-shadow(0 4px 8px rgba(0,0,0,0.5));
+    animation: tutBounce 1s ease-in-out infinite;
+    transform: translate(-50%, 0);
+  }
+  #tutArrow.up { transform: translate(-50%, 0) rotate(180deg); }
+  @keyframes tutBounce { 0%,100% { margin-top: 0; } 50% { margin-top: 10px; } }
+
+  /* ---------- Logros ---------- */
+  .ach {
+    display: flex; align-items: center; gap: 12px;
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 14px; padding: 12px; margin-bottom: 10px;
+  }
+  .ach.got { border-color: rgba(255,184,77,0.45); background: linear-gradient(135deg, rgba(255,184,77,0.08), var(--card)); }
+  .ach .aico { font-size: 30px; }
+  .ach .ainfo { flex: 1; }
+  .ach .anm { font-weight: 800; font-size: 14px; }
+  .ach .ads { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .ach .arw { font-size: 12.5px; font-weight: 800; color: var(--dona); }
+  .ach.locked { opacity: 0.45; }
+  .ach.locked .aico { filter: grayscale(1); }
+
+  /* ---------- Diarias ---------- */
+  .daily {
+    display: flex; align-items: center; gap: 12px;
+    background: linear-gradient(135deg, rgba(110,231,160,0.07), var(--card));
+    border: 1px solid rgba(110,231,160,0.25);
+    border-radius: 14px; padding: 12px; margin-bottom: 10px;
+  }
+  .daily .dico { font-size: 28px; }
+  .daily .dinfo { flex: 1; }
+  .daily .dnm { font-weight: 800; font-size: 13.5px; }
+  .daily .dds { font-size: 11.5px; color: var(--muted); margin: 2px 0 6px; }
+  .daily .dbar { height: 7px; border-radius: 99px; background: rgba(255,255,255,0.1); overflow: hidden; }
+  .daily .dbar i { display: block; height: 100%; border-radius: 99px; background: linear-gradient(90deg, #6ee7a0, #ffd166); }
+  .daily.done { border-color: rgba(110,231,160,0.6); }
+  .daily.claimed { opacity: 0.55; }
+  .daily .drew { color: var(--dona); font-weight: 800; font-size: 12.5px; white-space: nowrap; }
+  .dailySecTitle { font-size: 12px; font-weight: 800; color: var(--good); letter-spacing: .8px; text-transform: uppercase; margin: 2px 0 10px; }
+
+  /* ---------- Modo foto ---------- */
+  body.photo #hud, body.photo #dock, body.photo #zoomCtl { display: none; }
+  #photoBtn {
+    position: fixed; top: 10px; left: 50%; transform: translateX(-50%);
+    z-index: 26; border-radius: 99px; padding: 8px 16px;
+    background: var(--panel); border: 1px solid var(--border);
+    color: var(--text); font-weight: 700; font-size: 13px; cursor: pointer;
+    box-shadow: var(--shadow); backdrop-filter: blur(8px);
+    transition: transform .15s;
+  }
+  #photoBtn:active { transform: translateX(-50%) scale(0.94); }
+  body.photo #photoBtn { background: var(--accent); color: #1a1405; }
+
   /* intro */
   #intro {
     position: fixed; inset: 0; z-index: 40;
@@ -273,7 +342,10 @@
   <div id="zoomCtl">
     <button class="zbtn" id="zIn">＋</button>
     <button class="zbtn" id="zOut">－</button>
+    <button class="zbtn" id="musicBtn" title="Música">🔇</button>
   </div>
+
+  <button id="photoBtn">📷 Modo foto</button>
 
   <div id="buildBar">
     <span id="buildName">Edificio</span>
@@ -286,8 +358,16 @@
     <button class="dbtn" id="btnChars"><span class="ico">🧑‍🤝‍🧑</span>Amigos<span class="badge" id="taskBadge" style="display:none">0</span></button>
     <button class="dbtn" id="btnCollect"><span class="ico">💰</span>Recolectar<span class="badge" id="readyBadge" style="display:none">0</span></button>
     <button class="dbtn" id="btnQuests"><span class="ico">📋</span>Misiones</button>
+    <button class="dbtn" id="btnAch"><span class="ico">🏆</span>Logros</button>
     <button class="dbtn" id="btnLand"><span class="ico">🌱</span>Terreno</button>
   </div>
+
+  <div id="tutCard" style="display:none">
+    <div class="tt">Tutorial</div>
+    <div id="tutText"></div>
+    <div class="skip" id="tutSkip">Saltar tutorial</div>
+  </div>
+  <div id="tutArrow" style="display:none">👇</div>
 
   <!-- Tienda -->
   <div class="overlay" id="shopOv">
@@ -338,6 +418,18 @@
         <button class="xbtn" data-close="questOv">✕</button>
       </div>
       <div class="sheet-body" id="questBody"></div>
+    </div>
+  </div>
+
+  <!-- Logros -->
+  <div class="overlay" id="achOv">
+    <div class="sheet">
+      <div class="sheet-head">
+        <h2>🏆 Logros</h2>
+        <span class="sub" id="achSub"></span>
+        <button class="xbtn" data-close="achOv">✕</button>
+      </div>
+      <div class="sheet-body" id="achBody"></div>
     </div>
   </div>
 
@@ -483,6 +575,101 @@
     { id: 'q12', name: 'Pueblo Loco legendario',      story: 'Alcanza el nivel 15 para consagrar tu barrio.',         objs: [{ type: 'level', level: 15 }],                                   reward: { donas: 500, xp: 1500 } }
   ];
 
+  // Logros: se evalúan contra el estado en cada acción. Recompensan donas.
+  var ACHIEVEMENTS = [
+    { id: 'first-build',  name: 'Primer ladrillo',      desc: 'Construye tu primer edificio',        donas: 5,   check: function (s) { return s.buildings.length >= 2; } },
+    { id: 'ten-tasks',    name: 'Manos a la obra',      desc: 'Completa 10 tareas',                  donas: 10,  check: function (s) { return s.stats.tasksDone >= 10; } },
+    { id: 'hundred-tasks',name: 'Vecindario trabajador',desc: 'Completa 100 tareas',                 donas: 50,  check: function (s) { return s.stats.tasksDone >= 100; } },
+    { id: 'level-5',      name: 'Barrio creciente',     desc: 'Alcanza el nivel 5',                  donas: 10,  check: function (s) { return s.level >= 5; } },
+    { id: 'level-10',     name: 'Orgullo del pueblo',   desc: 'Alcanza el nivel 10',                 donas: 25,  check: function (s) { return s.level >= 10; } },
+    { id: 'level-15',     name: 'Leyenda local',        desc: 'Alcanza el nivel 15',                 donas: 60,  check: function (s) { return s.level >= 15; } },
+    { id: 'rich',         name: 'Caja fuerte',          desc: 'Ten 100.000 monedas a la vez',        donas: 20,  check: function (s) { return s.coins >= 100000; } },
+    { id: 'dona-hoarder', name: 'Coleccionista de donas', desc: 'Acumula 200 donas',                 donas: 0,   check: function (s) { return s.donas >= 200; } },
+    { id: 'expander',     name: 'Visionario',           desc: 'Expande el terreno a 10x10',          donas: 15,  check: function (s) { return s.landTier >= 2; } },
+    { id: 'decorator',    name: 'Paisajista',           desc: 'Coloca 6 adornos',                    donas: 20,  check: function (s) { return s.decor.length >= 6; } },
+    { id: 'metropolis',   name: 'Metrópolis',           desc: 'Ten 20 edificios en pie',             donas: 40,  check: function (s) { return s.buildings.length >= 20; } },
+    { id: 'all-quests',   name: 'Alcalde honorario',    desc: 'Completa las 12 misiones',            donas: 100, check: function (s) { return s.questIndex >= QUESTS.length; } }
+  ];
+
+  // Misiones diarias: cada día se eligen 3 del grupo según la fecha.
+  var DAILY_POOL = [
+    { id: 'd-tasks',  name: 'Jornada completa',  desc: 'Completa 3 tareas hoy',      goal: 3,   stat: 'tasksDone',      donas: 10 },
+    { id: 'd-coins',  name: 'Buen comercio',     desc: 'Recolecta 500 monedas hoy',  goal: 500, stat: 'coinsEarned',    donas: 8  },
+    { id: 'd-build',  name: 'Albañil del día',   desc: 'Construye 2 edificios hoy',  goal: 2,   stat: 'buildingsBuilt', donas: 10 },
+    { id: 'd-level',  name: 'Día de aprendizaje',desc: 'Sube 1 nivel hoy',           goal: 1,   stat: 'levelsGained',   donas: 12 },
+    { id: 'd-big',    name: 'Gran recolección',  desc: 'Recolecta 2.000 monedas hoy',goal: 2000,stat: 'coinsEarned',    donas: 15 },
+    { id: 'd-marathon',name: 'Maratón vecinal',  desc: 'Completa 8 tareas hoy',      goal: 8,   stat: 'tasksDone',      donas: 20 }
+  ];
+
+  function todayKey(now) {
+    var d = new Date(now);
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+
+  function hashStr(s) {
+    var h = 0;
+    for (var i = 0; i < s.length; i++) { h = (h * 31 + s.charCodeAt(i)) | 0; }
+    return Math.abs(h);
+  }
+
+  // Elige 3 misiones diarias deterministas para la fecha dada.
+  function pickDaily(dateKey) {
+    var pool = DAILY_POOL.slice();
+    var picks = [];
+    var h = hashStr(dateKey);
+    for (var i = 0; i < 3 && pool.length; i++) {
+      picks.push(pool.splice(h % pool.length, 1)[0]);
+      h = Math.floor(h / pool.length || 1) + 7;
+    }
+    return picks;
+  }
+
+  function initDaily(state, now) {
+    var key = todayKey(now);
+    state.daily = {
+      date: key,
+      picked: pickDaily(key).map(function (d) { return d.id; }),
+      stats: { tasksDone: 0, coinsEarned: 0, buildingsBuilt: 0, levelsGained: 0 },
+      claimed: {}
+    };
+  }
+
+  // Rota las misiones diarias si cambió el día.
+  function updateDaily(state, now) {
+    var key = todayKey(now);
+    if (!state.daily || state.daily.date !== key) initDaily(state, now);
+  }
+
+  function bumpDaily(state, field, n) {
+    if (!state.daily || !state.daily.stats) return;
+    state.daily.stats[field] = (state.daily.stats[field] || 0) + (n || 1);
+  }
+
+  function dailyProgress(state, now) {
+    updateDaily(state, now || Date.now());
+    return state.daily.picked.map(function (id) {
+      var d = DAILY_POOL.find(function (x) { return x.id === id; });
+      var cur = Math.min(d.goal, state.daily.stats[d.stat] || 0);
+      return {
+        def: d, progress: cur, goal: d.goal,
+        done: cur >= d.goal,
+        claimed: !!state.daily.claimed[id]
+      };
+    });
+  }
+
+  function claimDaily(state, id, now) {
+    updateDaily(state, now);
+    if (state.daily.claimed[id]) return { ok: false, reason: 'Ya reclamada' };
+    var d = DAILY_POOL.find(function (x) { return x.id === id; });
+    if (!d || state.daily.picked.indexOf(id) < 0) return { ok: false, reason: 'No es una misión de hoy' };
+    if ((state.daily.stats[d.stat] || 0) < d.goal) return { ok: false, reason: 'Aún no completada' };
+    state.daily.claimed[id] = true;
+    state.donas += d.donas;
+    var events = evaluateQuests(state, now);
+    return { ok: true, donas: d.donas, events: events };
+  }
+
   /* ------------------------------------------------------------- progresión */
 
   function xpForLevel(level) {
@@ -519,7 +706,9 @@
         return { def: c.def, unlocked: c.donas === 0, task: null };
       }),
       questIndex: 0,
+      tutorial: 0, // paso del tutorial (0 = activo, -1 = terminado/saltado)
       stats: { coinsEarned: 0, tasksDone: 0, buildingsBuilt: 0 },
+      achievements: {},
       lastSeen: Date.now()
     };
   }
@@ -590,6 +779,7 @@
       state.level++;
       gained++;
     }
+    if (gained > 0) bumpDaily(state, 'levelsGained', gained);
     return gained;
   }
 
@@ -600,6 +790,7 @@
     state.coins -= d.cost;
     state.buildings.push({ id: nextId(), def: defId, x: x, y: y, lastAt: now, ready: 0 });
     state.stats.buildingsBuilt++;
+    bumpDaily(state, 'buildingsBuilt', 1);
     addXp(state, d.xp);
     var events = evaluateQuests(state, now);
     return { ok: true, events: events };
@@ -685,6 +876,7 @@
     var amount = b.ready;
     state.coins += amount;
     state.stats.coinsEarned += amount;
+    bumpDaily(state, 'coinsEarned', amount);
     b.ready = 0;
     b.lastAt = now;
     var events = evaluateQuests(state, now);
@@ -702,6 +894,7 @@
     if (total <= 0) return { ok: false, reason: 'Nada que recolectar' };
     state.coins += total;
     state.stats.coinsEarned += total;
+    bumpDaily(state, 'coinsEarned', total);
     var events = evaluateQuests(state, now);
     return { ok: true, amount: total, events: events };
   }
@@ -725,6 +918,8 @@
     state.coins += t.coins;
     state.stats.coinsEarned += t.coins;
     state.stats.tasksDone++;
+    bumpDaily(state, 'tasksDone', 1);
+    bumpDaily(state, 'coinsEarned', t.coins);
     var gained = addXp(state, t.xp);
     entry.task = null;
     var events = evaluateQuests(state, now);
@@ -752,6 +947,7 @@
 
   // Avanza producción y tareas. Devuelve resumen de lo que cambió.
   function tick(state, now) {
+    updateDaily(state, now);
     var out = { coinsAccrued: 0, tasksReady: 0, levels: 0 };
     state.buildings.forEach(function (b) {
       var before = b.ready;
@@ -793,6 +989,8 @@
     if (!state || state.v !== VERSION) state = createState();
     var elapsed = Math.max(0, Math.min(now - (state.lastSeen || now), 7 * 24 * 3600 * 1000));
     state.lastSeen = now;
+    updateDaily(state, now);
+    if (state.tutorial == null) state.tutorial = 0;
     // Progreso offline: recolectar todo lo listo para que el jugador lo reclame.
     var offlineCoins = 0;
     state.buildings.forEach(function (b) {
@@ -840,7 +1038,7 @@
     };
   }
 
-  // Evalúa y completa misiones encadenadas. Devuelve eventos para la UI.
+  // Evalúa y completa misiones encadenadas + logros. Devuelve eventos para la UI.
   function evaluateQuests(state, now) {
     var events = [];
     var guard = 0;
@@ -855,6 +1053,16 @@
       state.questIndex++;
       events.push({ type: 'quest', quest: q, reward: r });
     }
+    // Logros: primera vez que se cumple la condición
+    if (!state.achievements) state.achievements = {};
+    ACHIEVEMENTS.forEach(function (a) {
+      if (state.achievements[a.id]) return;
+      if (a.check(state)) {
+        state.achievements[a.id] = true;
+        if (a.donas) state.donas += a.donas;
+        events.push({ type: 'achievement', ach: a });
+      }
+    });
     return events;
   }
 
@@ -871,6 +1079,7 @@
     VERSION: VERSION, SAVE_KEY: SAVE_KEY, OFFLINE_CAP_MS: OFFLINE_CAP_MS,
     BUILDINGS: BUILDINGS, CHARACTERS: CHARACTERS, DECOR: DECOR,
     QUESTS: QUESTS, LAND_TIERS: LAND_TIERS,
+    ACHIEVEMENTS: ACHIEVEMENTS, DAILY_POOL: DAILY_POOL,
     xpForLevel: xpForLevel,
     buildingDef: buildingDef, characterDef: characterDef, decorDef: decorDef,
     taskDef: taskDef, landTier: landTier, nextLandTier: nextLandTier,
@@ -884,6 +1093,8 @@
     tick: tick, loadState: loadState,
     activeQuest: activeQuest, questProgress: questProgress, objectiveDone: objectiveDone,
     evaluateQuests: evaluateQuests,
+    todayKey: todayKey, pickDaily: pickDaily, updateDaily: updateDaily,
+    dailyProgress: dailyProgress, claimDaily: claimDaily,
     save: save, load: load
   };
 });
@@ -945,8 +1156,67 @@
     place: function () { blip(300, 0.12, 'square', 0.05); setTimeout(function(){ blip(600, 0.14, 'square', 0.05); }, 70); },
     level: function () { blip(523, 0.12, 'sine', 0.08); setTimeout(function(){ blip(659, 0.12, 'sine', 0.08); }, 100); setTimeout(function(){ blip(784, 0.2, 'sine', 0.08); }, 200); },
     task: function () { blip(440, 0.1, 'triangle', 0.06); },
+    ach: function () { blip(659, 0.1, 'sine', 0.07); setTimeout(function(){ blip(880, 0.1, 'sine', 0.07); }, 90); setTimeout(function(){ blip(1047, 0.22, 'sine', 0.07); }, 180); },
     err: function () { blip(180, 0.18, 'sawtooth', 0.05); }
   };
+
+  /* ------------------------------------------------- música generativa */
+  var MUSIC = {
+    on: false, timer: null, step: 0, nextT: 0,
+    // grados de la escala (semitono relativo a C4), null = silencio
+    bass: [0, 0, 7, 7, 5, 5, 3, 4],
+    mel: [12, 16, 19, 16, 17, 19, 21, 19, 12, 16, 19, 24, 21, 19, 16, 14]
+  };
+  function ensureAC() {
+    if (AC) return true;
+    try {
+      AC = new (window.AudioContext || window.webkitAudioContext)();
+      return true;
+    } catch (e) { return false; }
+  }
+  function mnote(freq, dur, type, vol, at) {
+    var o = AC.createOscillator(), g = AC.createGain();
+    o.type = type; o.frequency.value = freq;
+    g.gain.setValueAtTime(vol, at);
+    g.gain.exponentialRampToValueAtTime(0.001, at + dur);
+    o.connect(g); g.connect(AC.destination);
+    o.start(at); o.stop(at + dur + 0.05);
+  }
+  function mSchedule() {
+    if (!MUSIC.on || !AC) return;
+    try {
+      if (AC.state === 'suspended') AC.resume();
+      while (MUSIC.nextT < AC.currentTime + 0.3) {
+        var i = MUSIC.step % 16;
+        if (i % 2 === 0) {
+          var b = MUSIC.bass[Math.floor(MUSIC.step / 2) % 8];
+          mnote(261.63 * Math.pow(2, (b - 12) / 12), 0.24, 'sine', 0.05, MUSIC.nextT);
+        }
+        var m = MUSIC.mel[i];
+        if (m != null) mnote(261.63 * Math.pow(2, m / 12), 0.22, 'triangle', 0.028, MUSIC.nextT);
+        if (i % 4 === 2) mnote(1900, 0.03, 'square', 0.007, MUSIC.nextT);
+        MUSIC.nextT += 0.25;
+        MUSIC.step++;
+      }
+    } catch (e) { /* sin audio, sin problema */ }
+  }
+  function startMusic() {
+    if (MUSIC.on) return;
+    if (!ensureAC()) return;
+    MUSIC.on = true;
+    MUSIC.step = 0;
+    MUSIC.nextT = AC.currentTime + 0.15;
+    MUSIC.timer = setInterval(mSchedule, 90);
+    $('musicBtn').textContent = '🔊';
+    localStorage.setItem('puebloloco.music', '1');
+  }
+  function stopMusic() {
+    MUSIC.on = false;
+    clearInterval(MUSIC.timer);
+    $('musicBtn').textContent = '🔇';
+    localStorage.setItem('puebloloco.music', '0');
+  }
+  $('musicBtn').onclick = function () { MUSIC.on ? stopMusic() : startMusic(); };
 
   /* --------------------------------------------------------------- toasts */
   function toast(msg, kind) {
@@ -1558,8 +1828,56 @@
         if (e.reward.xp) rw.push(e.reward.xp + ' ⭐');
         toast('📋 ¡Misión completa! ' + e.quest.name + ' · +' + rw.join(' +'), 'good');
       }
+      if (e.type === 'achievement') {
+        sfx.ach();
+        toast('🏆 ¡Logro desbloqueado! ' + e.ach.name + (e.ach.donas ? ' · +' + e.ach.donas + ' 🍩' : ''), 'good');
+      }
     });
   }
+
+  /* ------------------------------------------------------------- tutorial */
+  var tutFlags = {};
+  var TUT_STEPS = [
+    { t: '🏗️ Toca <b>Construir</b> y elige la <b>Casa</b>', sel: '#btnShop', check: function () { return tutFlags.shop; } },
+    { t: '📦 Toca la <b>Casa</b> y colócala en una zona verde del terreno', sel: '#btnShop', check: function () { return S.buildings.length >= 2; } },
+    { t: '💰 Toca <b>Recolectar</b> para cobrar tus primeras monedas', sel: '#btnCollect', check: function () { return tutFlags.collect; } },
+    { t: '🧑 Abre <b>Amigos</b> y dale una tarea a un vecino', sel: '#btnChars', check: function () { return tutFlags.task; } },
+    { t: '📋 Abre <b>Misiones</b> y cumple los objetivos del barrio', sel: '#btnQuests', check: function () { return tutFlags.quests; } }
+  ];
+  function endTutorial(skipped) {
+    if (S) S.tutorial = -1;
+    $('tutCard').style.display = 'none';
+    $('tutArrow').style.display = 'none';
+    if (!skipped) toast('🎓 ¡Tutorial completo! Ya eres alcalde de Pueblo Loco', 'good');
+  }
+  function updateTutorial() {
+    if (!S || S.tutorial < 0) return;
+    var step = TUT_STEPS[S.tutorial];
+    if (!step) { endTutorial(); return; }
+    if (step.check()) {
+      S.tutorial++;
+      step = TUT_STEPS[S.tutorial];
+      if (!step) { endTutorial(); return; }
+      tutFlags = {}; // los flags solo valen para el paso actual
+    }
+    $('tutText').innerHTML = step.t;
+    $('tutCard').style.display = 'block';
+    // flecha apuntando al botón objetivo
+    var targetSel = step.sel === '#btnShop' && $('buildBar').classList.contains('open') ? '#buildBar' : step.sel;
+    var target = $(targetSel.slice(1));
+    var arrow = $('tutArrow');
+    if (target && target.offsetParent !== null) {
+      var r = target.getBoundingClientRect();
+      arrow.style.display = 'block';
+      arrow.style.left = (r.left + r.width / 2) + 'px';
+      arrow.style.top = (r.bottom + 6) + 'px';
+      arrow.className = '';
+    } else {
+      arrow.style.display = 'none';
+    }
+  }
+  $('tutSkip').onclick = function () { sfx.tap(); endTutorial(true); };
+  setInterval(updateTutorial, 250);
 
   /* ---------------------------------------------------------------- HUD */
   function syncHUD() {
@@ -1672,7 +1990,10 @@
       });
     }
   }
-  function openShop() { renderShop(); openOv('shopOv'); }
+  function openShop() {
+    tutFlags.shop = true;
+    renderShop(); openOv('shopOv');
+  }
 
   /* --- personajes y tareas --- */
   function openChars() {
@@ -1773,7 +2094,7 @@
         '<button class="btn">Iniciar</button>';
       card.querySelector('.btn').onclick = function () {
         var r = C.startTask(S, def, t.id, Date.now());
-        if (r.ok) { sfx.task(); toast('▶ ' + t.name + ' iniciada', 'good'); closeOv('taskOv'); syncHUD(); }
+        if (r.ok) { sfx.task(); tutFlags.task = true; toast('▶ ' + t.name + ' iniciada', 'good'); closeOv('taskOv'); syncHUD(); }
         else { sfx.err(); toast(r.reason, 'bad'); }
       };
       body.appendChild(card);
@@ -1783,8 +2104,45 @@
 
   /* --- misiones --- */
   function openQuests() {
+    tutFlags.quests = true;
     var body = $('questBody');
     body.innerHTML = '';
+
+    // --- misiones diarias (rotan cada día) ---
+    var title = el('div', 'dailySecTitle', '☀️ Misiones de hoy — rotan a medianoche');
+    body.appendChild(title);
+    var dprog = C.dailyProgress(S, Date.now());
+    dprog.forEach(function (d) {
+      var pct = Math.min(100, (d.progress / d.goal) * 100);
+      var card = el('div', 'daily' + (d.claimed ? ' claimed' : d.done ? ' done' : ''));
+      var right = '';
+      if (d.claimed) {
+        right = '<span class="drew">✅ Reclamada</span>';
+      } else if (d.done) {
+        right = '<button class="btn dona" data-daily="' + d.def.id + '">Reclamar 🍩 ' + d.def.donas + '</button>';
+      } else {
+        right = '<span class="drew">🍩 ' + d.def.donas + '</span>';
+      }
+      card.innerHTML =
+        '<div class="dico">☀️</div>' +
+        '<div class="dinfo"><div class="dnm">' + d.def.name + '</div>' +
+        '<div class="dds">' + d.def.desc + ' — ' + fmt(d.progress) + ' / ' + fmt(d.goal) + '</div>' +
+        '<div class="dbar"><i style="width:' + pct + '%"></i></div></div>' + right;
+      var btn = card.querySelector('[data-daily]');
+      if (btn) btn.onclick = function () {
+        var r = C.claimDaily(S, d.def.id, Date.now());
+        if (r.ok) {
+          sfx.coin(); toast('☀️ ¡Misión diaria reclamada! +' + r.donas + ' 🍩', 'good');
+          handleEvents(r.events); syncHUD(); openQuests();
+        } else { sfx.err(); toast(r.reason, 'bad'); }
+      };
+      body.appendChild(card);
+    });
+
+    var sep = el('div', 'dailySecTitle', '📜 Historia del barrio');
+    sep.style.color = 'var(--muted)';
+    body.appendChild(sep);
+
     var done = 0;
     C.QUESTS.forEach(function (q, i) {
       var status = i < S.questIndex ? 'done' : (i === S.questIndex ? 'active' : 'locked');
@@ -1867,6 +2225,34 @@
     openOv('bldOv');
   }
 
+  /* --- logros --- */
+  var ACH_ICONS = {
+    'first-build': '🧱', 'ten-tasks': '🛠️', 'hundred-tasks': '🏗️',
+    'level-5': '🌱', 'level-10': '🌳', 'level-15': '👑',
+    'rich': '💰', 'dona-hoarder': '🍩', 'expander': '🗺️',
+    'decorator': '🌷', 'metropolis': '🏙️', 'all-quests': '🎖️'
+  };
+  function openAchievements() {
+    var body = $('achBody');
+    body.innerHTML = '';
+    var got = 0;
+    C.ACHIEVEMENTS.forEach(function (a) {
+      var unlocked = !!S.achievements[a.id];
+      if (unlocked) got++;
+      var card = el('div', 'ach ' + (unlocked ? 'got' : 'locked'));
+      card.innerHTML =
+        '<div class="aico">' + (ACH_ICONS[a.id] || '🏆') + '</div>' +
+        '<div class="ainfo"><div class="anm">' + a.name + '</div>' +
+        '<div class="ads">' + a.desc + '</div></div>' +
+        (unlocked
+          ? '<div class="arw">' + (a.donas ? '+' + a.donas + ' 🍩' : '✅') + '</div>'
+          : '<div class="arw" style="color:var(--muted)">' + (a.donas ? '🍩 ' + a.donas : '🔒') + '</div>');
+      body.appendChild(card);
+    });
+    $('achSub').textContent = got + ' / ' + C.ACHIEVEMENTS.length + ' desbloqueados';
+    openOv('achOv');
+  }
+
   /* --- terreno --- */
   function openLand() {
     var next = C.nextLandTier(S);
@@ -1900,11 +2286,19 @@
   $('btnShop').onclick = function () { sfx.tap(); openShop(); };
   $('btnChars').onclick = function () { sfx.tap(); openChars(); };
   $('btnQuests').onclick = function () { sfx.tap(); openQuests(); };
+  $('btnAch').onclick = function () { sfx.tap(); openAchievements(); };
   $('btnLand').onclick = function () { sfx.tap(); openLand(); };
   $('buildCancel').onclick = function () { build.def = null; $('buildBar').classList.remove('open'); sfx.tap(); };
+  $('photoBtn').onclick = function () {
+    document.body.classList.toggle('photo');
+    var on = document.body.classList.contains('photo');
+    $('photoBtn').textContent = on ? '📷 Salir del modo foto' : '📷 Modo foto';
+    sfx.tap();
+  };
   $('btnCollect').onclick = function () {
     var r = C.collectAll(S, Date.now());
     if (r.ok) {
+      tutFlags.collect = true;
       sfx.coin();
       S.buildings.forEach(function (b) {
         if (b.ready === 0) burstCoin(b.x + 0.5, b.y + 0.5, 4);
@@ -1948,6 +2342,8 @@
     var intro = $('intro');
     intro.style.opacity = '0';
     setTimeout(function () { intro.style.display = 'none'; }, 500);
+    // música: recordar preferencia (por defecto encendida tras el primer "Empezar")
+    if (localStorage.getItem('puebloloco.music') !== '0') startMusic();
     requestAnimationFrame(loop);
   }
   $('startBtn').onclick = function () { blip(660, 0.1); start(); };
@@ -1961,7 +2357,16 @@
     place: function (def, x, y) { return C.placeBuilding(S, def, x, y, Date.now()); },
     tick: function (sec) { return C.tick(S, Date.now() + sec * 1000); },
     collectAll: function () { return C.collectAll(S, Date.now()); },
-    openShop: openShop, openChars: openChars, openQuests: openQuests
+    openShop: openShop, openChars: openChars, openQuests: openQuests,
+    openAchievements: openAchievements,
+    tutorialStep: function () { return S ? S.tutorial : null; },
+    skipTutorial: function () { endTutorial(true); },
+    dailyProgress: function () { return C.dailyProgress(S, Date.now()); },
+    claimDaily: function (id) { return C.claimDaily(S, id, Date.now()); },
+    musicOn: function () { return MUSIC.on; },
+    toggleMusic: function () { MUSIC.on ? stopMusic() : startMusic(); },
+    photoOn: function () { return document.body.classList.contains('photo'); },
+    togglePhoto: function () { $('photoBtn').onclick(); }
   };
 })();
 

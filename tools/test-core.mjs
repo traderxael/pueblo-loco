@@ -226,6 +226,64 @@ section('Venta de edificios');
   ok(r2.ok === false, 'vender edificio inexistente falla limpiamente');
 }
 
+// --- Logros ---
+section('Logros');
+{
+  const s = C.createState();
+  C.seedStarter(s, NOW);
+  // q1 se completa al construir casa → first-build se dispara junto
+  const r1 = C.placeBuilding(s, 'casa', 0, 0, NOW);
+  const achEvents = r1.events.filter(e => e.type === 'achievement');
+  ok(achEvents.length >= 1, 'logro "Primer ladrillo" otorgado al primer edificio');
+  ok(s.achievements['first-build'] === true, 'logro persistido en el estado');
+  ok(s.donas > 30, `donas de recompensa sumadas (donas=${s.donas})`);
+  // no se repite
+  const r2 = C.placeBuilding(s, 'kiosco', 1, 1, NOW);
+  ok(r2.events.filter(e => e.type === 'achievement').length === 0, 'logros no se re-otorgan');
+  // desbloqueo por condición de estado
+  s.level = 5;
+  C.evaluateQuests(s, NOW);
+  ok(s.achievements['level-5'] === true, 'logro de nivel 5 otorgado');
+}
+
+// --- Misiones diarias ---
+section('Misiones diarias');
+{
+  const s = C.createState();
+  C.seedStarter(s, NOW);
+  C.tick(s, NOW); // inicializa las del día
+  const prog = C.dailyProgress(s, NOW);
+  ok(prog.length === 3, '3 misiones diarias activas');
+  const picked = C.pickDaily(C.todayKey(NOW));
+  ok(picked.length === 3 && new Set(picked.map(p => p.id)).size === 3, 'las 3 son distintas y deterministas');
+  ok(JSON.stringify(C.pickDaily('2026-10-13').map(p => p.id)) === JSON.stringify(C.pickDaily('2026-10-13').map(p => p.id)),
+    'misma fecha → mismas misiones (determinista)');
+  // completar y reclamar
+  const d0 = prog[0].def;
+  s.daily.stats[d0.stat] = d0.goal;
+  const c1 = C.claimDaily(s, d0.id, NOW);
+  ok(c1.ok === true && c1.donas === d0.donas, `misión diaria reclamada (+${d0.donas} 🍩)`);
+  const c2 = C.claimDaily(s, d0.id, NOW);
+  ok(c2.ok === false && c2.reason === 'Ya reclamada', 'no se puede reclamar dos veces');
+  // reclamar sin completar falla
+  const d1 = prog[1].def;
+  s.daily.stats[d1.stat] = 0;
+  const c3 = C.claimDaily(s, d1.id, NOW);
+  ok(c3.ok === false && c3.reason === 'Aún no completada', 'reclamar sin completar falla');
+  // rota al día siguiente
+  const tomorrow = NOW + 24 * 3600 * 1000;
+  C.tick(s, tomorrow);
+  const prog2 = C.dailyProgress(s, tomorrow);
+  ok(prog2.every(p => !p.claimed), 'misiones diarias rotan: reclamadas se limpian al nuevo día');
+  ok(s.daily.date === C.todayKey(tomorrow), 'fecha del daily actualizada');
+  // las acciones del juego suman al progreso diario
+  const before = s.daily.stats.tasksDone;
+  C.startTask(s, 'luis', 'regar', NOW);
+  C.tick(s, NOW + 301000);
+  C.completeTask(s, 'luis', NOW + 301000);
+  ok(s.daily.stats.tasksDone === before + 1, 'completar tarea suma al daily');
+}
+
 // --- Playthrough simulado (distribución) ---
 section('Playthrough simulado (30 días × 20 semillas)');
 {
