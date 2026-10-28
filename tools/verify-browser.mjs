@@ -5,24 +5,23 @@
  */
 import { createRequire } from 'module';
 import path from 'path';
-import { pathToFileURL } from 'url';
+import { fileURLToPath, pathToFileURL } from 'url';
 
 const require = createRequire(import.meta.url);
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const ROOT = path.resolve(__dirname, '..');
 
-// Buscar playwright en proyectos hermanos
+// Resolver playwright: instalado en el repo o indicado por PLAYWRIGHT_PATH.
 let pw = null;
-const candidates = [
-  'C:/Users/USUARIO/AI-Informe-/node_modules/playwright',
-  'C:/Users/USUARIO/genex-desktop/node_modules/playwright'
-];
+const candidates = [process.env.PLAYWRIGHT_PATH, 'playwright'].filter(Boolean);
 for (const c of candidates) {
   try { pw = require(c); console.log('playwright desde:', c); break; } catch (e) { /* siguiente */ }
 }
-if (!pw) { console.error('playwright no encontrado'); process.exit(1); }
+if (!pw) { console.error('playwright no encontrado: npm i -D playwright o define PLAYWRIGHT_PATH'); process.exit(1); }
 
 const CH = pw.chromium;
-const GAME = 'file:///C:/Users/USUARIO/proyectos/pueblo-loco/index.html';
-const SHOT = 'C:/Users/USUARIO/proyectos/pueblo-loco/screenshots';
+const GAME = pathToFileURL(path.join(ROOT, 'index.html')).href;
+const SHOT = path.join(ROOT, 'screenshots');
 
 let passed = 0, failed = 0;
 const ok = (c, n) => { if (c) { passed++; console.log('  ✓ ' + n); } else { failed++; console.log('  ✗ ' + n); } };
